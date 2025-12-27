@@ -111,13 +111,14 @@ function AppLayout() {
       <div className={`flex h-screen w-full ${isRTL ? "flex-row-reverse" : ""}`}>
         <AppSidebar />
         <SidebarInset className="flex flex-col flex-1 min-w-0">
-          <header className="flex items-center justify-between gap-4 px-4 py-3 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-50">
+          <header className="flex items-center justify-between gap-4 px-4 h-14 border-b bg-background/80 backdrop-blur-lg supports-[backdrop-filter]:bg-background/60 sticky top-0 z-50">
             <div className="flex items-center gap-3">
               <SidebarTrigger data-testid="button-sidebar-toggle" />
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1">
               <LanguageToggle />
               <ThemeToggle />
+              <div className="w-px h-6 bg-border mx-2" />
               <UserMenu />
             </div>
           </header>
