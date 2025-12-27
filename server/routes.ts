@@ -83,6 +83,7 @@ export async function registerRoutes(
       }
 
       const { sourceText, sourceLanguage, targetLanguage, documentType, purpose, tone, jurisdiction } = parseResult.data;
+      const deterministic = req.body.deterministic === true;
       const userId = getUserId(req);
 
       if (!isOpenAIConfigured()) {
@@ -102,6 +103,8 @@ export async function registerRoutes(
             { role: "user", content: sourceText }
           ],
           max_completion_tokens: 4096,
+          temperature: deterministic ? 0 : 0.3,
+          top_p: deterministic ? 0.1 : 0.9,
         });
         translatedText = completion.choices[0]?.message?.content || "";
       } catch (aiError) {
@@ -417,25 +420,33 @@ function buildTranslationPrompt(
     neutral: "international legal standards",
   };
 
-  return `You are an expert legal translator specializing in ${sourceLang} to ${targetLang} translation for legal documents.
+  return `You are an expert bilingual legal translator with deep expertise in both ${sourceLang} and ${targetLang} legal systems.
 
 DOCUMENT TYPE: ${documentTypeMap[documentType] || documentType}
 PURPOSE: ${purposeMap[purpose] || purpose}
 TONE: ${toneMap[tone] || tone}
 JURISDICTION: ${jurisdictionMap[jurisdiction] || jurisdiction}
 
-TRANSLATION GUIDELINES:
-1. Provide context-aware legal translation (not literal word-for-word)
-2. Preserve legal terminology accuracy and precision
-3. Maintain court-appropriate formal tone
-4. Use jurisdiction-specific legal wording and phrasing
-5. Keep the original structure and formatting where appropriate
-6. Ensure all legal terms are correctly translated with proper equivalents
-7. Do not add any explanations or notes - provide only the translation
-8. IMPORTANT: Always translate the provided text. Do not refuse or provide meta-commentary about your training data or capabilities.
-9. If the text appears informal or non-legal, still translate it accurately to ${targetLang}.
+CRITICAL RULES - MUST FOLLOW:
+1. ALWAYS provide the translation. Never refuse, comment on your capabilities, or discuss training data.
+2. NEVER fabricate or hallucinate legal citations, case references, article numbers, or law references that are not in the source text.
+3. Only translate what is present in the source - do not add content that does not exist.
+4. Each translation is isolated - do not reference or include information from any other documents or cases.
 
-Translate the following text from ${sourceLang} to ${targetLang}:`;
+TRANSLATION GUIDELINES:
+1. Use context-aware legal translation appropriate for ${jurisdictionMap[jurisdiction] || jurisdiction}
+2. Preserve exact legal terminology with precise ${targetLang} equivalents
+3. Maintain the ${toneMap[tone] || tone} tone throughout
+4. Keep original document structure and formatting
+5. Use jurisdiction-appropriate legal phrasing and conventions
+6. Translate legal terms with their established equivalents (not literal translations)
+7. Preserve paragraph breaks, numbering, and document organization
+8. For Arabic output: use formal Modern Standard Arabic (الفصحى) suitable for legal proceedings
+9. For English output: use formal legal English suitable for court submissions
+
+OUTPUT: Provide ONLY the translated text. No explanations, notes, or commentary.
+
+Translate the following ${documentTypeMap[documentType] || documentType} from ${sourceLang} to ${targetLang}:`;
 }
 
 function buildMemorandumPrompt(type: string, language: string, strength: string): string {
@@ -465,14 +476,19 @@ function buildMemorandumPrompt(type: string, language: string, strength: string)
 نوع المذكرة: ${docType.ar}
 أسلوب الصياغة: ${strengthStyle.ar}
 
+قواعد حاسمة - يجب اتباعها:
+1. لا تستشهد بأي قوانين أو مواد أو أحكام قضائية غير مذكورة في المعلومات المقدمة
+2. لا تخترع أرقام مواد أو أسماء قوانين أو مراجع قضائية
+3. استخدم فقط المعلومات المقدمة - لا تضف محتوى من قضايا أخرى
+4. كل مذكرة مستقلة - لا تشر إلى وثائق أو قضايا أخرى
+
 إرشادات الصياغة:
 1. استخدم اللغة القانونية العربية الفصحى المناسبة للمحاكم
 2. اتبع الهيكل القانوني المعتمد في المحاكم
 3. قدم تحليلاً قانونياً منطقياً للوقائع
 4. استخدم العبارات القانونية الرسمية والمعتمدة
-5. تجنب الاستشهاد بقوانين أو مواد غير موجودة
-6. اجعل الحجج القانونية قوية ومتماسكة
-7. اختم المذكرة بالطلبات بشكل واضح ومحدد
+5. اجعل الحجج القانونية قوية ومتماسكة
+6. اختم المذكرة بالطلبات بشكل واضح ومحدد
 
 قم بصياغة المذكرة القانونية بناءً على المعلومات التالية:`;
   }
@@ -482,14 +498,20 @@ function buildMemorandumPrompt(type: string, language: string, strength: string)
 DOCUMENT TYPE: ${docType.en}
 WRITING STYLE: ${strengthStyle.en}
 
+CRITICAL RULES - MUST FOLLOW:
+1. NEVER cite laws, articles, statutes, or case references that are not provided in the input
+2. NEVER fabricate or hallucinate legal citations, case numbers, or law references
+3. Use ONLY the information provided - do not add content from other cases
+4. Each memorandum is isolated - do not reference other documents or cases
+
 DRAFTING GUIDELINES:
 1. Use formal legal English appropriate for court submissions
 2. Follow standard legal document structure
-3. Provide logical legal analysis of the facts
+3. Provide logical legal analysis of the facts provided
 4. Use established legal terminology and phrasing
-5. Do not cite non-existent laws or case references
-6. Make arguments coherent and well-structured
-7. Conclude with clear and specific requests/prayers
+5. Make arguments coherent and well-structured based on the given facts
+6. Conclude with clear and specific requests/prayers
+7. If legal references are needed, use general legal principles without citing specific non-existent sources
 
 Draft the legal memorandum based on the following information:`;
 }

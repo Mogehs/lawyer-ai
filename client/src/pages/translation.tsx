@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Switch } from "@/components/ui/switch";
 import {
   Select,
   SelectContent,
@@ -30,6 +31,7 @@ export default function Translation() {
   const [purpose, setPurpose] = useState<string>("court");
   const [tone, setTone] = useState<string>("formal");
   const [jurisdiction, setJurisdiction] = useState<string>("qatar");
+  const [deterministic, setDeterministic] = useState(true);
   const [copied, setCopied] = useState(false);
 
   const targetLanguage = sourceLanguage === "ar" ? "en" : "ar";
@@ -44,6 +46,7 @@ export default function Translation() {
         purpose,
         tone,
         jurisdiction,
+        deterministic,
       });
       return response.json();
     },
@@ -202,6 +205,23 @@ export default function Translation() {
                 </SelectContent>
               </Select>
             </div>
+          </div>
+          <div className="mt-4 pt-4 border-t flex items-center justify-between gap-4">
+            <div className="flex-1">
+              <Label className="text-sm font-medium">
+                {isRTL ? "وضع الاتساق" : "Consistent Mode"}
+              </Label>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                {isRTL 
+                  ? "ينتج نفس النتيجة للنص ذاته (موصى به للوثائق القانونية)"
+                  : "Produces same output for same input (recommended for legal documents)"}
+              </p>
+            </div>
+            <Switch
+              checked={deterministic}
+              onCheckedChange={setDeterministic}
+              data-testid="switch-deterministic"
+            />
           </div>
         </CardContent>
       </Card>
