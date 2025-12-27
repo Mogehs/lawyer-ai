@@ -1,9 +1,10 @@
 import type { Express } from "express";
-import { createServer, type Server } from "http";
+import { type Server } from "http";
 import { storage } from "./storage";
 import OpenAI from "openai";
 import { z } from "zod";
-import { insertTranslationSchema, insertMemorandumSchema, documentTypes, documentPurposes, writingTones, jurisdictions, memorandumTypes, memoStrengths } from "@shared/schema";
+import { documentTypes, documentPurposes, writingTones, jurisdictions, memorandumTypes, memoStrengths } from "@shared/schema";
+import { setupAuth, registerAuthRoutes, isAuthenticated } from "./replit_integrations/auth";
 
 const openai = new OpenAI({
   apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
@@ -35,14 +36,21 @@ function isOpenAIConfigured(): boolean {
   return !!(process.env.AI_INTEGRATIONS_OPENAI_API_KEY && process.env.AI_INTEGRATIONS_OPENAI_BASE_URL);
 }
 
+function getUserId(req: any): string {
+  return req.user?.claims?.sub || "";
+}
+
 export async function registerRoutes(
   httpServer: Server,
   app: Express
 ): Promise<Server> {
+  await setupAuth(app);
+  registerAuthRoutes(app);
 
-  app.get("/api/translations", async (req, res) => {
+  app.get("/api/translations", isAuthenticated, async (req: any, res) => {
     try {
-      const translations = await storage.getTranslations();
+      const userId = getUserId(req);
+      const translations = await storage.getTranslations(userId);
       res.json(translations);
     } catch (error) {
       console.error("Error fetching translations:", error);
@@ -50,7 +58,7 @@ export async function registerRoutes(
     }
   });
 
-  app.get("/api/translations/:id", async (req, res) => {
+  app.get("/api/translations/:id", isAuthenticated, async (req, res) => {
     try {
       const translation = await storage.getTranslation(req.params.id);
       if (!translation) {
@@ -63,7 +71,7 @@ export async function registerRoutes(
     }
   });
 
-  app.post("/api/translate", async (req, res) => {
+  app.post("/api/translate", isAuthenticated, async (req: any, res) => {
     try {
       const parseResult = translateRequestSchema.safeParse(req.body);
       if (!parseResult.success) {
@@ -74,6 +82,7 @@ export async function registerRoutes(
       }
 
       const { sourceText, sourceLanguage, targetLanguage, documentType, purpose, tone, jurisdiction } = parseResult.data;
+      const userId = getUserId(req);
 
       if (!isOpenAIConfigured()) {
         return res.status(503).json({ 
@@ -102,6 +111,7 @@ export async function registerRoutes(
       }
 
       const translation = await storage.createTranslation({
+        userId,
         sourceLanguage,
         targetLanguage,
         sourceText,
@@ -119,7 +129,7 @@ export async function registerRoutes(
     }
   });
 
-  app.delete("/api/translations/:id", async (req, res) => {
+  app.delete("/api/translations/:id", isAuthenticated, async (req, res) => {
     try {
       await storage.deleteTranslation(req.params.id);
       res.status(204).send();
@@ -129,9 +139,10 @@ export async function registerRoutes(
     }
   });
 
-  app.get("/api/memorandums", async (req, res) => {
+  app.get("/api/memorandums", isAuthenticated, async (req: any, res) => {
     try {
-      const memorandums = await storage.getMemorandums();
+      const userId = getUserId(req);
+      const memorandums = await storage.getMemorandums(userId);
       res.json(memorandums);
     } catch (error) {
       console.error("Error fetching memorandums:", error);
@@ -139,7 +150,7 @@ export async function registerRoutes(
     }
   });
 
-  app.get("/api/memorandums/:id", async (req, res) => {
+  app.get("/api/memorandums/:id", isAuthenticated, async (req, res) => {
     try {
       const memorandum = await storage.getMemorandum(req.params.id);
       if (!memorandum) {
@@ -152,7 +163,7 @@ export async function registerRoutes(
     }
   });
 
-  app.post("/api/memorandums/generate", async (req, res) => {
+  app.post("/api/memorandums/generate", isAuthenticated, async (req: any, res) => {
     try {
       const parseResult = generateMemoRequestSchema.safeParse(req.body);
       if (!parseResult.success) {
@@ -163,6 +174,7 @@ export async function registerRoutes(
       }
 
       const { type, language, courtName, caseNumber, caseFacts, legalRequests, defensePoints, strength } = parseResult.data;
+      const userId = getUserId(req);
 
       if (!isOpenAIConfigured()) {
         return res.status(503).json({ 
@@ -192,6 +204,7 @@ export async function registerRoutes(
       }
 
       const memorandum = await storage.createMemorandum({
+        userId,
         type,
         language,
         courtName,
@@ -210,13 +223,31 @@ export async function registerRoutes(
     }
   });
 
-  app.delete("/api/memorandums/:id", async (req, res) => {
+  app.delete("/api/memorandums/:id", isAuthenticated, async (req, res) => {
     try {
       await storage.deleteMemorandum(req.params.id);
       res.status(204).send();
     } catch (error) {
       console.error("Error deleting memorandum:", error);
       res.status(500).json({ error: "Failed to delete memorandum" });
+    }
+  });
+
+  app.get("/api/stats", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      const translations = await storage.getTranslations(userId);
+      const memorandums = await storage.getMemorandums(userId);
+      
+      res.json({
+        totalTranslations: translations.length,
+        totalMemorandums: memorandums.length,
+        recentTranslations: translations.slice(0, 5),
+        recentMemorandums: memorandums.slice(0, 5),
+      });
+    } catch (error) {
+      console.error("Error fetching stats:", error);
+      res.status(500).json({ error: "Failed to fetch statistics" });
     }
   });
 

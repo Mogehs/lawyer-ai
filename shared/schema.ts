@@ -1,4 +1,9 @@
+import { pgTable, text, varchar, timestamp, jsonb } from "drizzle-orm/pg-core";
+import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
+import { sql, relations } from "drizzle-orm";
+
+export * from "./models/auth";
 
 export const documentTypes = [
   "legal_memorandum",
@@ -22,76 +27,87 @@ export const memorandumTypes = [
   "legal_motion",
 ] as const;
 
-export const translationSchema = z.object({
-  id: z.string(),
-  sourceLanguage: z.enum(["ar", "en"]),
-  targetLanguage: z.enum(["ar", "en"]),
-  sourceText: z.string(),
-  translatedText: z.string(),
-  documentType: z.enum(documentTypes),
-  purpose: z.enum(documentPurposes),
-  tone: z.enum(writingTones),
-  jurisdiction: z.enum(jurisdictions),
-  createdAt: z.string(),
-  versions: z.array(z.object({
-    id: z.string(),
-    translatedText: z.string(),
-    createdAt: z.string(),
-  })),
+export const translations = pgTable("translations", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull(),
+  sourceLanguage: varchar("source_language", { length: 2 }).notNull(),
+  targetLanguage: varchar("target_language", { length: 2 }).notNull(),
+  sourceText: text("source_text").notNull(),
+  translatedText: text("translated_text").notNull(),
+  documentType: varchar("document_type", { length: 50 }).notNull(),
+  purpose: varchar("purpose", { length: 20 }).notNull(),
+  tone: varchar("tone", { length: 20 }).notNull(),
+  jurisdiction: varchar("jurisdiction", { length: 20 }).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
-export const insertTranslationSchema = translationSchema.omit({
+export const translationVersions = pgTable("translation_versions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  translationId: varchar("translation_id").notNull(),
+  translatedText: text("translated_text").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const translationsRelations = relations(translations, ({ many }) => ({
+  versions: many(translationVersions),
+}));
+
+export const translationVersionsRelations = relations(translationVersions, ({ one }) => ({
+  translation: one(translations, {
+    fields: [translationVersions.translationId],
+    references: [translations.id],
+  }),
+}));
+
+export const memorandums = pgTable("memorandums", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull(),
+  type: varchar("type", { length: 50 }).notNull(),
+  language: varchar("language", { length: 2 }).notNull(),
+  courtName: varchar("court_name", { length: 255 }).notNull(),
+  caseNumber: varchar("case_number", { length: 100 }).notNull(),
+  caseFacts: text("case_facts").notNull(),
+  legalRequests: text("legal_requests").notNull(),
+  defensePoints: text("defense_points"),
+  strength: varchar("strength", { length: 20 }).notNull(),
+  generatedContent: text("generated_content").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const memorandumVersions = pgTable("memorandum_versions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  memorandumId: varchar("memorandum_id").notNull(),
+  content: text("content").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const memorandumsRelations = relations(memorandums, ({ many }) => ({
+  versions: many(memorandumVersions),
+}));
+
+export const memorandumVersionsRelations = relations(memorandumVersions, ({ one }) => ({
+  memorandum: one(memorandums, {
+    fields: [memorandumVersions.memorandumId],
+    references: [memorandums.id],
+  }),
+}));
+
+export const insertTranslationSchema = createInsertSchema(translations).omit({
   id: true,
   createdAt: true,
-  versions: true,
 });
 
-export type Translation = z.infer<typeof translationSchema>;
+export const insertMemorandumSchema = createInsertSchema(memorandums).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type Translation = typeof translations.$inferSelect & {
+  versions: (typeof translationVersions.$inferSelect)[];
+};
 export type InsertTranslation = z.infer<typeof insertTranslationSchema>;
 
-export const memorandumSchema = z.object({
-  id: z.string(),
-  type: z.enum(memorandumTypes),
-  language: z.enum(["ar", "en"]),
-  courtName: z.string(),
-  caseNumber: z.string(),
-  caseFacts: z.string(),
-  legalRequests: z.string(),
-  defensePoints: z.string().optional(),
-  strength: z.enum(memoStrengths),
-  generatedContent: z.string(),
-  createdAt: z.string(),
-  versions: z.array(z.object({
-    id: z.string(),
-    content: z.string(),
-    createdAt: z.string(),
-  })),
-});
-
-export const insertMemorandumSchema = memorandumSchema.omit({
-  id: true,
-  createdAt: true,
-  generatedContent: true,
-  versions: true,
-});
-
-export type Memorandum = z.infer<typeof memorandumSchema>;
+export type Memorandum = typeof memorandums.$inferSelect & {
+  versions: (typeof memorandumVersions.$inferSelect)[];
+};
 export type InsertMemorandum = z.infer<typeof insertMemorandumSchema>;
-
-export const users = {
-  id: "",
-  username: "",
-  password: "",
-};
-
-export const insertUserSchema = z.object({
-  username: z.string(),
-  password: z.string(),
-});
-
-export type InsertUser = z.infer<typeof insertUserSchema>;
-export type User = {
-  id: string;
-  username: string;
-  password: string;
-};

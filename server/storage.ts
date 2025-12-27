@@ -1,106 +1,168 @@
-import type { Translation, InsertTranslation, Memorandum, InsertMemorandum } from "@shared/schema";
-import { randomUUID } from "crypto";
+import { 
+  translations, 
+  translationVersions, 
+  memorandums, 
+  memorandumVersions,
+  type Translation, 
+  type InsertTranslation, 
+  type Memorandum, 
+  type InsertMemorandum 
+} from "@shared/schema";
+import { db } from "./db";
+import { eq, desc } from "drizzle-orm";
 
 export interface IStorage {
-  getTranslations(): Promise<Translation[]>;
+  getTranslations(userId: string): Promise<Translation[]>;
   getTranslation(id: string): Promise<Translation | undefined>;
-  createTranslation(data: InsertTranslation & { translatedText: string }): Promise<Translation>;
+  createTranslation(data: InsertTranslation): Promise<Translation>;
   deleteTranslation(id: string): Promise<void>;
   addTranslationVersion(id: string, translatedText: string): Promise<Translation | undefined>;
 
-  getMemorandums(): Promise<Memorandum[]>;
+  getMemorandums(userId: string): Promise<Memorandum[]>;
   getMemorandum(id: string): Promise<Memorandum | undefined>;
-  createMemorandum(data: InsertMemorandum & { generatedContent: string }): Promise<Memorandum>;
+  createMemorandum(data: InsertMemorandum): Promise<Memorandum>;
   deleteMemorandum(id: string): Promise<void>;
   addMemorandumVersion(id: string, content: string): Promise<Memorandum | undefined>;
 }
 
-export class MemStorage implements IStorage {
-  private translations: Map<string, Translation>;
-  private memorandums: Map<string, Memorandum>;
-
-  constructor() {
-    this.translations = new Map();
-    this.memorandums = new Map();
-  }
-
-  async getTranslations(): Promise<Translation[]> {
-    return Array.from(this.translations.values()).sort(
-      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+export class DatabaseStorage implements IStorage {
+  async getTranslations(userId: string): Promise<Translation[]> {
+    const results = await db
+      .select()
+      .from(translations)
+      .where(eq(translations.userId, userId))
+      .orderBy(desc(translations.createdAt));
+    
+    const translationsWithVersions = await Promise.all(
+      results.map(async (t) => {
+        const versions = await db
+          .select()
+          .from(translationVersions)
+          .where(eq(translationVersions.translationId, t.id))
+          .orderBy(desc(translationVersions.createdAt));
+        return { ...t, versions };
+      })
     );
+    
+    return translationsWithVersions;
   }
 
   async getTranslation(id: string): Promise<Translation | undefined> {
-    return this.translations.get(id);
+    const [result] = await db
+      .select()
+      .from(translations)
+      .where(eq(translations.id, id));
+    
+    if (!result) return undefined;
+    
+    const versions = await db
+      .select()
+      .from(translationVersions)
+      .where(eq(translationVersions.translationId, id))
+      .orderBy(desc(translationVersions.createdAt));
+    
+    return { ...result, versions };
   }
 
-  async createTranslation(data: InsertTranslation & { translatedText: string }): Promise<Translation> {
-    const id = randomUUID();
-    const translation: Translation = {
-      id,
-      ...data,
-      createdAt: new Date().toISOString(),
-      versions: [],
-    };
-    this.translations.set(id, translation);
-    return translation;
+  async createTranslation(data: InsertTranslation): Promise<Translation> {
+    const [result] = await db
+      .insert(translations)
+      .values(data)
+      .returning();
+    
+    return { ...result, versions: [] };
   }
 
   async deleteTranslation(id: string): Promise<void> {
-    this.translations.delete(id);
+    await db.delete(translationVersions).where(eq(translationVersions.translationId, id));
+    await db.delete(translations).where(eq(translations.id, id));
   }
 
   async addTranslationVersion(id: string, translatedText: string): Promise<Translation | undefined> {
-    const translation = this.translations.get(id);
+    const translation = await this.getTranslation(id);
     if (!translation) return undefined;
 
-    translation.versions.push({
-      id: randomUUID(),
+    await db.insert(translationVersions).values({
+      translationId: id,
       translatedText,
-      createdAt: new Date().toISOString(),
     });
-    translation.translatedText = translatedText;
-    return translation;
+
+    await db
+      .update(translations)
+      .set({ translatedText })
+      .where(eq(translations.id, id));
+
+    return this.getTranslation(id);
   }
 
-  async getMemorandums(): Promise<Memorandum[]> {
-    return Array.from(this.memorandums.values()).sort(
-      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+  async getMemorandums(userId: string): Promise<Memorandum[]> {
+    const results = await db
+      .select()
+      .from(memorandums)
+      .where(eq(memorandums.userId, userId))
+      .orderBy(desc(memorandums.createdAt));
+    
+    const memorandumsWithVersions = await Promise.all(
+      results.map(async (m) => {
+        const versions = await db
+          .select()
+          .from(memorandumVersions)
+          .where(eq(memorandumVersions.memorandumId, m.id))
+          .orderBy(desc(memorandumVersions.createdAt));
+        return { ...m, versions };
+      })
     );
+    
+    return memorandumsWithVersions;
   }
 
   async getMemorandum(id: string): Promise<Memorandum | undefined> {
-    return this.memorandums.get(id);
+    const [result] = await db
+      .select()
+      .from(memorandums)
+      .where(eq(memorandums.id, id));
+    
+    if (!result) return undefined;
+    
+    const versions = await db
+      .select()
+      .from(memorandumVersions)
+      .where(eq(memorandumVersions.memorandumId, id))
+      .orderBy(desc(memorandumVersions.createdAt));
+    
+    return { ...result, versions };
   }
 
-  async createMemorandum(data: InsertMemorandum & { generatedContent: string }): Promise<Memorandum> {
-    const id = randomUUID();
-    const memorandum: Memorandum = {
-      id,
-      ...data,
-      createdAt: new Date().toISOString(),
-      versions: [],
-    };
-    this.memorandums.set(id, memorandum);
-    return memorandum;
+  async createMemorandum(data: InsertMemorandum): Promise<Memorandum> {
+    const [result] = await db
+      .insert(memorandums)
+      .values(data)
+      .returning();
+    
+    return { ...result, versions: [] };
   }
 
   async deleteMemorandum(id: string): Promise<void> {
-    this.memorandums.delete(id);
+    await db.delete(memorandumVersions).where(eq(memorandumVersions.memorandumId, id));
+    await db.delete(memorandums).where(eq(memorandums.id, id));
   }
 
   async addMemorandumVersion(id: string, content: string): Promise<Memorandum | undefined> {
-    const memorandum = this.memorandums.get(id);
+    const memorandum = await this.getMemorandum(id);
     if (!memorandum) return undefined;
 
-    memorandum.versions.push({
-      id: randomUUID(),
+    await db.insert(memorandumVersions).values({
+      memorandumId: id,
       content,
-      createdAt: new Date().toISOString(),
     });
-    memorandum.generatedContent = content;
-    return memorandum;
+
+    await db
+      .update(memorandums)
+      .set({ generatedContent: content })
+      .where(eq(memorandums.id, id));
+
+    return this.getMemorandum(id);
   }
 }
 
-export const storage = new MemStorage();
+export const storage = new DatabaseStorage();

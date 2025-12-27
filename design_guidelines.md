@@ -1,102 +1,91 @@
 # AI Legal Translation & Memorandum System - Design Guidelines
 
-## Design Approach
-**System-Based Approach**: Professional enterprise design emphasizing trust, clarity, and efficiency. Drawing from Fluent Design principles for data-heavy legal applications, with strong influences from Notion for document editing and Linear for clean form interfaces.
+## Design Philosophy
+A **luxury legal concierge** experience with refined elegance, modern minimalism, and professional sophistication. The interface conveys trust, authority, and premium quality expected in the legal industry.
 
 ## Core Design Principles
 1. **Bilingual Excellence**: Seamless Arabic/English switching with perfect RTL/LTR support
 2. **Professional Trust**: Conservative, authoritative aesthetic suitable for legal professionals
-3. **Functional Clarity**: Zero ambiguity in workflows and document states
-4. **Efficient Workflows**: Minimize clicks, maximize productivity
+3. **Elegant Minimalism**: Clean, uncluttered interfaces with generous whitespace
+4. **Premium Quality**: Every interaction feels refined and intentional
 
 ## Typography
 **English**: Inter (primary), 400/500/600 weights
 **Arabic**: IBM Plex Sans Arabic (primary), 400/500/600 weights
-- Headings: 24px/20px/16px (xl/lg/base)
-- Body: 15px (base), 14px (sm) for secondary text
-- Monospace: For case numbers, references - 13px
+- Display: 2.5rem for hero headings
+- Headings: 1.5rem/1.25rem/1rem (h1/h2/h3)
+- Body: 1rem (base), 0.875rem for secondary text
 - Line height: 1.6 for Arabic, 1.5 for English
-- Text direction switching must be automatic and contextual
+- Letter spacing: Slightly loose for elegance
+
+## Color Strategy
+### Primary Palette
+- **Deep Navy** (#1e3a5f): Primary brand color, authoritative
+- **Slate Gray**: Sophisticated neutrals for UI elements
+- **Warm Amber**: Warning/disclaimer accents
+
+### Surface Colors
+- Light mode: Soft whites with subtle cream undertones
+- Dark mode: Deep graphite (#0F1419) with elevated surfaces
+- Cards: Subtle elevation with refined shadows
 
 ## Layout System
-**Spacing Primitives**: Use Tailwind units of 3, 4, 6, 8, 12
-- Component padding: p-4, p-6
+**Spacing Primitives**: 4, 8, 12, 16, 24, 32, 48
+- Component padding: p-5, p-6 (generous)
 - Section spacing: py-8, py-12
-- Form gaps: gap-4, gap-6
-- Container max-width: max-w-6xl for main content, max-w-4xl for documents
+- Form gaps: gap-5, gap-6
+- Container: max-w-6xl for main content
 
 ## Component Library
 
 ### Navigation
-- Persistent left sidebar (240px wide)
-- Two-level navigation: Main modules + sub-sections
-- Language toggle (AR/EN) in top-right header
-- User profile/firm branding in header
-- Breadcrumb trail for deep navigation
+- Refined left sidebar with subtle hover states
+- User avatar and profile dropdown
+- Language toggle (AR/EN) prominently placed
+- Active state with subtle accent highlight
 
-### Translation Module Interface
-- Split-pane layout: Source (left) | Target (right)
-- Document type selector (dropdown)
-- Tone selector (chips: Formal/Professional/Concise)
-- Jurisdiction selector (Qatar/GCC/Neutral)
-- Full-height editor with line numbers
-- Floating action buttons: Translate, Export, Save Version
-- Translation history sidebar (collapsible)
-
-### Memorandum Drafting Interface
-- Multi-step wizard layout:
-  1. Memorandum type selection (cards with icons)
-  2. Case information form (structured inputs)
-  3. AI drafting interface (prompt + generated output)
-  4. Edit & refine (WYSIWYG editor)
-- Tone strength slider (Strong ← Neutral → Defensive)
-- Live preview panel
-- Template library (modal overlay)
+### Cards
+- Rounded corners (rounded-xl for 12px)
+- Subtle shadow in light mode
+- Generous internal padding (p-6)
+- Clear visual hierarchy
 
 ### Forms & Inputs
-- Label above input (not floating)
-- Clear validation states with Arabic-appropriate error messages
-- Textarea auto-expand for case facts/legal arguments
-- Date pickers with Hijri calendar support
-- Dropdown menus with search for long lists (courts, case types)
+- Label above input with adequate spacing
+- Refined focus rings
+- Clear validation states
+- Generous input padding
 
-### Document Editor
-- Clean toolbar (similar to Notion)
-- Formatting: Bold, Italic, Underline, Headings, Lists
-- Legal citation insertion tool
-- Comment/annotation capability
-- Version comparison view (side-by-side diff)
+### Buttons
+- Primary: Deep navy with smooth hover transition
+- Secondary: Outlined with subtle fill on hover
+- Ghost: Minimal, text-based
 
-### Trust & Compliance Elements
-- Prominent disclaimer banner: "AI-Generated Draft – Lawyer Review Required" (amber background, persistent)
+### Trust Elements
+- **AI Disclaimer**: Amber banner, always visible, compact
 - Status badges: Draft | Under Review | Approved
-- Audit trail timestamps (small, subtle, bottom of documents)
-- Lock icon for finalized documents
+- Timestamps: Small, subtle, consistent placement
 
-### Modals & Overlays
-- Export dialog: Format selection (DOCX/PDF), metadata input
-- Template manager: Grid of saved templates with preview
-- Version history: Timeline view with restore capability
-
-## Color Strategy
-Reserved for implementation - focus on professional blues/grays with amber for warnings
+## Dashboard Features
+- Welcome message with user name
+- Recent memorandums section (last 5)
+- Recent translations section (last 5)
+- Quick action cards
+- Activity statistics
 
 ## Responsive Behavior
 - Desktop-first (primary use case)
 - Tablet: Collapsible sidebar
-- Mobile: Not primary target, but basic document viewing supported
+- Mobile: Simplified navigation
 
-## Images
-**No hero images** - this is a professional tool, not marketing
-**Icons**: Heroicons for UI elements, Font Awesome for legal-specific symbols (scales, gavel)
-**Firm Logo**: Placeholder in top-left (white-label ready)
-
-## Critical RTL Implementation
-- Automatic text-align switching
-- Mirrored layout for sidebar (right-aligned in Arabic)
-- Reversed flex/grid directions where appropriate
-- Icons that don't flip: arrows, chevrons DO flip; symbolic icons DON'T
-- Form labels maintain proper alignment (right-aligned in RTL)
+## RTL Implementation
+- Automatic layout mirroring
+- Text alignment switching
+- Icon direction awareness
+- Form labels properly aligned
 
 ## Animations
-**Minimal**: Page transitions (150ms fade), dropdown openings (100ms), success confirmations (subtle scale)
+- Subtle transitions (150ms ease-out)
+- No distracting movements
+- Loading skeletons for content
+- Smooth hover elevations
