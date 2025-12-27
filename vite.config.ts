@@ -30,6 +30,36 @@ export default defineConfig({
   build: {
     outDir: path.resolve(import.meta.dirname, "dist/public"),
     emptyOutDir: true,
+    rollupOptions: {
+      output: {
+        manualChunks: (id) => {
+          if (id.includes('node_modules')) {
+            // React core
+            if (id.includes('react') || id.includes('react-dom')) {
+              return 'react-vendor';
+            }
+            // Radix UI components
+            if (id.includes('@radix-ui')) {
+              return 'ui-vendor';
+            }
+            // React Query
+            if (id.includes('@tanstack/react-query')) {
+              return 'query-vendor';
+            }
+            // PDF generation
+            if (id.includes('jspdf') || id.includes('html2canvas')) {
+              return 'pdf-vendor';
+            }
+            // Other large libraries
+            if (id.includes('framer-motion')) {
+              return 'animation-vendor';
+            }
+          }
+        },
+      },
+    },
+    chunkSizeWarningLimit: 600,
+    sourcemap: false,
   },
   server: {
     fs: {
