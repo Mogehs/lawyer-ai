@@ -16,6 +16,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { documentTypes, documentPurposes, writingTones, jurisdictions } from "@shared/schema";
+import { exportTranslationToPDF } from "@/lib/pdf-export";
 
 export default function Translation() {
   const { t, isRTL, language } = useI18n();
@@ -77,6 +78,24 @@ export default function Translation() {
   const clearAll = () => {
     setSourceText("");
     setTranslatedText("");
+  };
+
+  const exportToPDF = () => {
+    exportTranslationToPDF({
+      sourceText,
+      translatedText,
+      sourceLanguage,
+      targetLanguage,
+      documentType,
+      purpose,
+      tone,
+      jurisdiction,
+      isArabicUI: isRTL,
+    });
+    toast({
+      title: t("common.success"),
+      description: isRTL ? "تم تصدير الترجمة بنجاح" : "Translation exported successfully",
+    });
   };
 
   return (
@@ -273,6 +292,7 @@ export default function Translation() {
               <Button
                 variant="outline"
                 disabled={!translatedText}
+                onClick={exportToPDF}
                 data-testid="button-export"
               >
                 <Download className="h-4 w-4" />

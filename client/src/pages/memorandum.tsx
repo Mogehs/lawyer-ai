@@ -12,6 +12,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { memorandumTypes, memoStrengths } from "@shared/schema";
+import { exportMemoToPDF } from "@/lib/pdf-export";
 
 const memoTypeIcons: Record<string, any> = {
   defense_memorandum: Shield,
@@ -86,6 +87,20 @@ export default function Memorandum() {
     await navigator.clipboard.writeText(generatedContent);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+  };
+
+  const exportToPDF = () => {
+    exportMemoToPDF({
+      content: generatedContent,
+      memoType,
+      courtName,
+      caseNumber,
+      language: language as "ar" | "en",
+    });
+    toast({
+      title: t("common.success"),
+      description: isRTL ? "تم تصدير المذكرة بنجاح" : "Memorandum exported successfully",
+    });
   };
 
   const resetForm = () => {
@@ -364,7 +379,7 @@ export default function Memorandum() {
                     {copied ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
                     <span className={isRTL ? "mr-2" : "ml-2"}>{t("translation.copy")}</span>
                   </Button>
-                  <Button variant="outline" size="sm" data-testid="button-export-memo">
+                  <Button variant="outline" size="sm" onClick={exportToPDF} data-testid="button-export-memo">
                     <Download className="h-4 w-4" />
                     <span className={isRTL ? "mr-2" : "ml-2"}>{t("translation.export")}</span>
                   </Button>
