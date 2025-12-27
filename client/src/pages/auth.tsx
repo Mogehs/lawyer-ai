@@ -1,11 +1,8 @@
 import { useState } from "react";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Label } from "@/components/ui/label";
 import { useI18n } from "@/lib/i18n";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
@@ -17,40 +14,34 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
-const loginSchema = z.object({
-  email: z.string().email("Invalid email address"),
-  password: z.string().min(1, "Password is required"),
-});
-
-const registerSchema = z.object({
-  email: z.string().email("Invalid email address"),
-  password: z.string().min(6, "Password must be at least 6 characters"),
-  firstName: z.string().min(1, "First name is required"),
-  lastName: z.string().optional(),
-});
-
-type LoginForm = z.infer<typeof loginSchema>;
-type RegisterForm = z.infer<typeof registerSchema>;
-
 export default function AuthPage() {
   const [isLogin, setIsLogin] = useState(true);
   const { isRTL, language, setLanguage } = useI18n();
   const { login, register, isLoggingIn, isRegistering } = useAuth();
   const { toast } = useToast();
 
-  const loginForm = useForm<LoginForm>({
-    resolver: zodResolver(loginSchema),
-    defaultValues: { email: "", password: "" },
-  });
+  const [loginEmail, setLoginEmail] = useState("");
+  const [loginPassword, setLoginPassword] = useState("");
+  
+  const [registerEmail, setRegisterEmail] = useState("");
+  const [registerPassword, setRegisterPassword] = useState("");
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
 
-  const registerForm = useForm<RegisterForm>({
-    resolver: zodResolver(registerSchema),
-    defaultValues: { email: "", password: "", firstName: "", lastName: "" },
-  });
+  const isSubmitting = isLoggingIn || isRegistering;
 
-  const onLogin = async (data: LoginForm) => {
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!loginEmail || !loginPassword) {
+      toast({
+        title: isRTL ? "خطأ" : "Error",
+        description: isRTL ? "الرجاء إدخال البريد الإلكتروني وكلمة المرور" : "Please enter email and password",
+        variant: "destructive",
+      });
+      return;
+    }
     try {
-      await login(data);
+      await login({ email: loginEmail, password: loginPassword });
     } catch (error: any) {
       toast({
         title: isRTL ? "خطأ في تسجيل الدخول" : "Login Error",
@@ -60,9 +51,26 @@ export default function AuthPage() {
     }
   };
 
-  const onRegister = async (data: RegisterForm) => {
+  const handleRegister = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!registerEmail || !registerPassword || !firstName) {
+      toast({
+        title: isRTL ? "خطأ" : "Error",
+        description: isRTL ? "الرجاء ملء جميع الحقول المطلوبة" : "Please fill in all required fields",
+        variant: "destructive",
+      });
+      return;
+    }
+    if (registerPassword.length < 6) {
+      toast({
+        title: isRTL ? "خطأ" : "Error",
+        description: isRTL ? "كلمة المرور يجب أن تكون 6 أحرف على الأقل" : "Password must be at least 6 characters",
+        variant: "destructive",
+      });
+      return;
+    }
     try {
-      await register(data);
+      await register({ email: registerEmail, password: registerPassword, firstName, lastName });
     } catch (error: any) {
       toast({
         title: isRTL ? "خطأ في إنشاء الحساب" : "Registration Error",
@@ -71,8 +79,6 @@ export default function AuthPage() {
       });
     }
   };
-
-  const isSubmitting = isLoggingIn || isRegistering;
 
   return (
     <div className="min-h-screen flex" dir={isRTL ? "rtl" : "ltr"}>
@@ -144,161 +150,97 @@ export default function AuthPage() {
             </CardHeader>
             <CardContent>
               {isLogin ? (
-                <Form {...loginForm}>
-                  <form onSubmit={loginForm.handleSubmit(onLogin)} className="space-y-4">
-                    <FormField
-                      control={loginForm.control}
-                      name="email"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>{isRTL ? "البريد الإلكتروني" : "Email"}</FormLabel>
-                          <FormControl>
-                            <Input
-                              type="email"
-                              placeholder={isRTL ? "أدخل بريدك الإلكتروني" : "Enter your email"}
-                              data-testid="input-email"
-                              value={field.value}
-                              onChange={field.onChange}
-                              onBlur={field.onBlur}
-                              name={field.name}
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
+                <form onSubmit={handleLogin} className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="login-email">{isRTL ? "البريد الإلكتروني" : "Email"}</Label>
+                    <Input
+                      id="login-email"
+                      type="email"
+                      placeholder={isRTL ? "أدخل بريدك الإلكتروني" : "Enter your email"}
+                      value={loginEmail}
+                      onChange={(e) => setLoginEmail(e.target.value)}
+                      data-testid="input-email"
                     />
-                    <FormField
-                      control={loginForm.control}
-                      name="password"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>{isRTL ? "كلمة المرور" : "Password"}</FormLabel>
-                          <FormControl>
-                            <Input
-                              type="password"
-                              placeholder={isRTL ? "أدخل كلمة المرور" : "Enter your password"}
-                              data-testid="input-password"
-                              value={field.value}
-                              onChange={field.onChange}
-                              onBlur={field.onBlur}
-                              name={field.name}
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="login-password">{isRTL ? "كلمة المرور" : "Password"}</Label>
+                    <Input
+                      id="login-password"
+                      type="password"
+                      placeholder={isRTL ? "أدخل كلمة المرور" : "Enter your password"}
+                      value={loginPassword}
+                      onChange={(e) => setLoginPassword(e.target.value)}
+                      data-testid="input-password"
                     />
-                    <Button type="submit" className="w-full" disabled={isSubmitting} data-testid="button-submit-login">
-                      {isSubmitting ? (
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                      ) : (
-                        <>
-                          {isRTL ? "تسجيل الدخول" : "Sign In"}
-                          <ArrowRight className={`w-4 h-4 ${isRTL ? "mr-2 rotate-180" : "ml-2"}`} />
-                        </>
-                      )}
-                    </Button>
-                  </form>
-                </Form>
+                  </div>
+                  <Button type="submit" className="w-full" disabled={isSubmitting} data-testid="button-submit-login">
+                    {isSubmitting ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <>
+                        {isRTL ? "تسجيل الدخول" : "Sign In"}
+                        <ArrowRight className={`w-4 h-4 ${isRTL ? "mr-2 rotate-180" : "ml-2"}`} />
+                      </>
+                    )}
+                  </Button>
+                </form>
               ) : (
-                <Form {...registerForm}>
-                  <form onSubmit={registerForm.handleSubmit(onRegister)} className="space-y-4">
-                    <div className="grid grid-cols-2 gap-4">
-                      <FormField
-                        control={registerForm.control}
-                        name="firstName"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>{isRTL ? "الاسم الأول" : "First Name"}</FormLabel>
-                            <FormControl>
-                              <Input
-                                placeholder={isRTL ? "الاسم" : "First"}
-                                data-testid="input-first-name"
-                                value={field.value}
-                                onChange={field.onChange}
-                                onBlur={field.onBlur}
-                                name={field.name}
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      <FormField
-                        control={registerForm.control}
-                        name="lastName"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>{isRTL ? "اسم العائلة" : "Last Name"}</FormLabel>
-                            <FormControl>
-                              <Input
-                                placeholder={isRTL ? "العائلة" : "Last"}
-                                data-testid="input-last-name"
-                                value={field.value}
-                                onChange={field.onChange}
-                                onBlur={field.onBlur}
-                                name={field.name}
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
+                <form onSubmit={handleRegister} className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="first-name">{isRTL ? "الاسم الأول" : "First Name"}</Label>
+                      <Input
+                        id="first-name"
+                        placeholder={isRTL ? "الاسم" : "First"}
+                        value={firstName}
+                        onChange={(e) => setFirstName(e.target.value)}
+                        data-testid="input-first-name"
                       />
                     </div>
-                    <FormField
-                      control={registerForm.control}
-                      name="email"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>{isRTL ? "البريد الإلكتروني" : "Email"}</FormLabel>
-                          <FormControl>
-                            <Input
-                              type="email"
-                              placeholder={isRTL ? "أدخل بريدك الإلكتروني" : "Enter your email"}
-                              data-testid="input-register-email"
-                              value={field.value}
-                              onChange={field.onChange}
-                              onBlur={field.onBlur}
-                              name={field.name}
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
+                    <div className="space-y-2">
+                      <Label htmlFor="last-name">{isRTL ? "اسم العائلة" : "Last Name"}</Label>
+                      <Input
+                        id="last-name"
+                        placeholder={isRTL ? "العائلة" : "Last"}
+                        value={lastName}
+                        onChange={(e) => setLastName(e.target.value)}
+                        data-testid="input-last-name"
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="register-email">{isRTL ? "البريد الإلكتروني" : "Email"}</Label>
+                    <Input
+                      id="register-email"
+                      type="email"
+                      placeholder={isRTL ? "أدخل بريدك الإلكتروني" : "Enter your email"}
+                      value={registerEmail}
+                      onChange={(e) => setRegisterEmail(e.target.value)}
+                      data-testid="input-register-email"
                     />
-                    <FormField
-                      control={registerForm.control}
-                      name="password"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>{isRTL ? "كلمة المرور" : "Password"}</FormLabel>
-                          <FormControl>
-                            <Input
-                              type="password"
-                              placeholder={isRTL ? "6 أحرف على الأقل" : "At least 6 characters"}
-                              data-testid="input-register-password"
-                              value={field.value}
-                              onChange={field.onChange}
-                              onBlur={field.onBlur}
-                              name={field.name}
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="register-password">{isRTL ? "كلمة المرور" : "Password"}</Label>
+                    <Input
+                      id="register-password"
+                      type="password"
+                      placeholder={isRTL ? "6 أحرف على الأقل" : "At least 6 characters"}
+                      value={registerPassword}
+                      onChange={(e) => setRegisterPassword(e.target.value)}
+                      data-testid="input-register-password"
                     />
-                    <Button type="submit" className="w-full" disabled={isSubmitting} data-testid="button-submit-register">
-                      {isSubmitting ? (
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                      ) : (
-                        <>
-                          {isRTL ? "إنشاء حساب" : "Create Account"}
-                          <ArrowRight className={`w-4 h-4 ${isRTL ? "mr-2 rotate-180" : "ml-2"}`} />
-                        </>
-                      )}
-                    </Button>
-                  </form>
-                </Form>
+                  </div>
+                  <Button type="submit" className="w-full" disabled={isSubmitting} data-testid="button-submit-register">
+                    {isSubmitting ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <>
+                        {isRTL ? "إنشاء حساب" : "Create Account"}
+                        <ArrowRight className={`w-4 h-4 ${isRTL ? "mr-2 rotate-180" : "ml-2"}`} />
+                      </>
+                    )}
+                  </Button>
+                </form>
               )}
 
               <div className="mt-6 text-center">
