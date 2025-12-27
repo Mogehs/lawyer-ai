@@ -154,7 +154,7 @@ export default function AuthPage() {
                           <FormLabel>{isRTL ? "البريد الإلكتروني" : "Email"}</FormLabel>
                           <FormControl>
                             <div className="relative">
-                              <Mail className={`absolute top-3 w-4 h-4 text-muted-foreground ${isRTL ? "right-3" : "left-3"}`} />
+                              <Mail className={`absolute top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none ${isRTL ? "right-3" : "left-3"}`} />
                               <Input
                                 {...field}
                                 type="email"
@@ -176,7 +176,7 @@ export default function AuthPage() {
                           <FormLabel>{isRTL ? "كلمة المرور" : "Password"}</FormLabel>
                           <FormControl>
                             <div className="relative">
-                              <Lock className={`absolute top-3 w-4 h-4 text-muted-foreground ${isRTL ? "right-3" : "left-3"}`} />
+                              <Lock className={`absolute top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none ${isRTL ? "right-3" : "left-3"}`} />
                               <Input
                                 {...field}
                                 type="password"
@@ -214,7 +214,7 @@ export default function AuthPage() {
                             <FormLabel>{isRTL ? "الاسم الأول" : "First Name"}</FormLabel>
                             <FormControl>
                               <div className="relative">
-                                <User className={`absolute top-3 w-4 h-4 text-muted-foreground ${isRTL ? "right-3" : "left-3"}`} />
+                                <User className={`absolute top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none ${isRTL ? "right-3" : "left-3"}`} />
                                 <Input
                                   {...field}
                                   placeholder={isRTL ? "الاسم" : "First"}
@@ -253,7 +253,7 @@ export default function AuthPage() {
                           <FormLabel>{isRTL ? "البريد الإلكتروني" : "Email"}</FormLabel>
                           <FormControl>
                             <div className="relative">
-                              <Mail className={`absolute top-3 w-4 h-4 text-muted-foreground ${isRTL ? "right-3" : "left-3"}`} />
+                              <Mail className={`absolute top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none ${isRTL ? "right-3" : "left-3"}`} />
                               <Input
                                 {...field}
                                 type="email"
@@ -275,7 +275,7 @@ export default function AuthPage() {
                           <FormLabel>{isRTL ? "كلمة المرور" : "Password"}</FormLabel>
                           <FormControl>
                             <div className="relative">
-                              <Lock className={`absolute top-3 w-4 h-4 text-muted-foreground ${isRTL ? "right-3" : "left-3"}`} />
+                              <Lock className={`absolute top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none ${isRTL ? "right-3" : "left-3"}`} />
                               <Input
                                 {...field}
                                 type="password"
