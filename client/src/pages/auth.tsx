@@ -9,7 +9,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { useI18n } from "@/lib/i18n";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
-import { Scale, Mail, Lock, User, ArrowRight, Loader2, Globe, Check } from "lucide-react";
+import { Scale, ArrowRight, Loader2, Globe, Check } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -153,16 +153,15 @@ export default function AuthPage() {
                         <FormItem>
                           <FormLabel>{isRTL ? "البريد الإلكتروني" : "Email"}</FormLabel>
                           <FormControl>
-                            <div className="relative">
-                              <Mail className={`absolute top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none ${isRTL ? "right-3" : "left-3"}`} />
-                              <Input
-                                {...field}
-                                type="email"
-                                placeholder={isRTL ? "أدخل بريدك الإلكتروني" : "Enter your email"}
-                                className={isRTL ? "pr-10" : "pl-10"}
-                                data-testid="input-email"
-                              />
-                            </div>
+                            <Input
+                              type="email"
+                              placeholder={isRTL ? "أدخل بريدك الإلكتروني" : "Enter your email"}
+                              data-testid="input-email"
+                              value={field.value}
+                              onChange={field.onChange}
+                              onBlur={field.onBlur}
+                              name={field.name}
+                            />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -175,16 +174,15 @@ export default function AuthPage() {
                         <FormItem>
                           <FormLabel>{isRTL ? "كلمة المرور" : "Password"}</FormLabel>
                           <FormControl>
-                            <div className="relative">
-                              <Lock className={`absolute top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none ${isRTL ? "right-3" : "left-3"}`} />
-                              <Input
-                                {...field}
-                                type="password"
-                                placeholder={isRTL ? "أدخل كلمة المرور" : "Enter your password"}
-                                className={isRTL ? "pr-10" : "pl-10"}
-                                data-testid="input-password"
-                              />
-                            </div>
+                            <Input
+                              type="password"
+                              placeholder={isRTL ? "أدخل كلمة المرور" : "Enter your password"}
+                              data-testid="input-password"
+                              value={field.value}
+                              onChange={field.onChange}
+                              onBlur={field.onBlur}
+                              name={field.name}
+                            />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -213,15 +211,14 @@ export default function AuthPage() {
                           <FormItem>
                             <FormLabel>{isRTL ? "الاسم الأول" : "First Name"}</FormLabel>
                             <FormControl>
-                              <div className="relative">
-                                <User className={`absolute top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none ${isRTL ? "right-3" : "left-3"}`} />
-                                <Input
-                                  {...field}
-                                  placeholder={isRTL ? "الاسم" : "First"}
-                                  className={isRTL ? "pr-10" : "pl-10"}
-                                  data-testid="input-first-name"
-                                />
-                              </div>
+                              <Input
+                                placeholder={isRTL ? "الاسم" : "First"}
+                                data-testid="input-first-name"
+                                value={field.value}
+                                onChange={field.onChange}
+                                onBlur={field.onBlur}
+                                name={field.name}
+                              />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
@@ -235,9 +232,12 @@ export default function AuthPage() {
                             <FormLabel>{isRTL ? "اسم العائلة" : "Last Name"}</FormLabel>
                             <FormControl>
                               <Input
-                                {...field}
                                 placeholder={isRTL ? "العائلة" : "Last"}
                                 data-testid="input-last-name"
+                                value={field.value}
+                                onChange={field.onChange}
+                                onBlur={field.onBlur}
+                                name={field.name}
                               />
                             </FormControl>
                             <FormMessage />
@@ -252,16 +252,15 @@ export default function AuthPage() {
                         <FormItem>
                           <FormLabel>{isRTL ? "البريد الإلكتروني" : "Email"}</FormLabel>
                           <FormControl>
-                            <div className="relative">
-                              <Mail className={`absolute top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none ${isRTL ? "right-3" : "left-3"}`} />
-                              <Input
-                                {...field}
-                                type="email"
-                                placeholder={isRTL ? "أدخل بريدك الإلكتروني" : "Enter your email"}
-                                className={isRTL ? "pr-10" : "pl-10"}
-                                data-testid="input-register-email"
-                              />
-                            </div>
+                            <Input
+                              type="email"
+                              placeholder={isRTL ? "أدخل بريدك الإلكتروني" : "Enter your email"}
+                              data-testid="input-register-email"
+                              value={field.value}
+                              onChange={field.onChange}
+                              onBlur={field.onBlur}
+                              name={field.name}
+                            />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -274,16 +273,15 @@ export default function AuthPage() {
                         <FormItem>
                           <FormLabel>{isRTL ? "كلمة المرور" : "Password"}</FormLabel>
                           <FormControl>
-                            <div className="relative">
-                              <Lock className={`absolute top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none ${isRTL ? "right-3" : "left-3"}`} />
-                              <Input
-                                {...field}
-                                type="password"
-                                placeholder={isRTL ? "6 أحرف على الأقل" : "At least 6 characters"}
-                                className={isRTL ? "pr-10" : "pl-10"}
-                                data-testid="input-register-password"
-                              />
-                            </div>
+                            <Input
+                              type="password"
+                              placeholder={isRTL ? "6 أحرف على الأقل" : "At least 6 characters"}
+                              data-testid="input-register-password"
+                              value={field.value}
+                              onChange={field.onChange}
+                              onBlur={field.onBlur}
+                              name={field.name}
+                            />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
