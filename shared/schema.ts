@@ -111,3 +111,35 @@ export type Memorandum = typeof memorandums.$inferSelect & {
   versions: (typeof memorandumVersions.$inferSelect)[];
 };
 export type InsertMemorandum = z.infer<typeof insertMemorandumSchema>;
+
+// Audit log for tracking user actions
+export const auditLogActions = [
+  "login",
+  "logout",
+  "register",
+  "translation_create",
+  "translation_delete",
+  "memorandum_create",
+  "memorandum_delete",
+  "settings_update",
+  "user_role_update",
+] as const;
+
+export const auditLogs = pgTable("audit_logs", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull(),
+  userEmail: varchar("user_email", { length: 255 }).notNull(),
+  action: varchar("action", { length: 50 }).notNull(),
+  details: jsonb("details"),
+  ipAddress: varchar("ip_address", { length: 45 }),
+  userAgent: text("user_agent"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertAuditLogSchema = createInsertSchema(auditLogs).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type AuditLog = typeof auditLogs.$inferSelect;
+export type InsertAuditLog = z.infer<typeof insertAuditLogSchema>;
