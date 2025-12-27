@@ -97,7 +97,7 @@ export async function registerRoutes(
       let translatedText: string;
       try {
         const completion = await openai.chat.completions.create({
-          model: "gpt-4o",
+          model: process.env.AI_MODEL || "google/gemini-2.0-flash-exp",
           messages: [
             { role: "system", content: systemPrompt },
             { role: "user", content: sourceText }
@@ -207,7 +207,7 @@ export async function registerRoutes(
       let generatedContent: string;
       try {
         const completion = await openai.chat.completions.create({
-          model: "gpt-4o",
+          model: process.env.AI_MODEL || "google/gemini-2.0-flash-exp",
           messages: [
             { role: "system", content: systemPrompt },
             { role: "user", content: userPrompt }
