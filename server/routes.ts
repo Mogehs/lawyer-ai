@@ -1,12 +1,15 @@
 import type { Express, Request } from "express";
 import { type Server } from "http";
 import { storage } from "./storage";
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import OpenAI from "openai";
 import { z } from "zod";
 import { documentTypes, documentPurposes, writingTones, jurisdictions, memorandumTypes, memoStrengths, insertSiteSettingsSchema } from "@shared/schema";
 import { setupAuth, registerAuthRoutes, isAuthenticated, isAdmin, attachUser, logAudit, type AuthenticatedRequest } from "./auth";
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "AIzaSyDOnEdn5Y4PIALaHGeGjAKMnkNzsc7gQJs");
+const openai = new OpenAI({
+  apiKey: "sk-88cf80c90e884146af4b2b3bef7f8ae3",
+  baseURL: "https://api.deepseek.com",
+});
 
 const translateRequestSchema = z.object({
   sourceText: z.string().min(1, "Source text is required"),
@@ -30,7 +33,7 @@ const generateMemoRequestSchema = z.object({
 });
 
 function isOpenAIConfigured(): boolean {
-  const apiKey = process.env.GEMINI_API_KEY;
+  const apiKey = process.env.DEEPSEEK_API_KEY || process.env.OPENAI_API_KEY;
   return !!apiKey;
 }
 
@@ -93,22 +96,19 @@ export async function registerRoutes(
 
       let translatedText: string;
       try {
-        const model = genAI.getGenerativeModel({ 
-          model: process.env.GEMINI_MODEL || "gemini-1.5-flash",
-          generationConfig: {
-            temperature: deterministic ? 0 : 0.3,
-            topP: deterministic ? 0.1 : 0.9,
-            maxOutputTokens: 4096,
-          },
+        const completion = await openai.chat.completions.create({
+          model: "deepseek-chat",
+          messages: [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: sourceText }
+          ],
+          max_tokens: 4096,
+          temperature: deterministic ? 0 : 0.3,
+          top_p: deterministic ? 0.1 : 0.9,
         });
-        
-        const prompt = `${systemPrompt}
-
-${sourceText}`;
-        const result = await model.generateContent(prompt);
-        translatedText = result.response.text() || "";
+        translatedText = completion.choices[0]?.message?.content || "";
       } catch (aiError: any) {
-        console.error("Gemini API error:", aiError);
+        console.error("DeepSeek API error:", aiError);
         console.error("Error details:", aiError.message, aiError.stack);
         return res.status(503).json({ 
           error: "AI translation service is temporarily unavailable. Please try again later.",
@@ -208,20 +208,17 @@ ${sourceText}`;
 
       let generatedContent: string;
       try {
-        const model = genAI.getGenerativeModel({ 
-          model: "gemini-1.5-flash",
-          generationConfig: {
-            maxOutputTokens: 8192,
-          },
+        const completion = await openai.chat.completions.create({
+          model: process.env.DEEPSEEK_MODEL || "deepseek-chat",
+          messages: [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: userPrompt }
+          ],
+          max_tokens: 8192,
         });
-        
-        const prompt = `${systemPrompt}
-
-${userPrompt}`;
-        const result = await model.generateContent(prompt);
-        generatedContent = result.response.text() || "";
+        generatedContent = completion.choices[0]?.message?.content || "";
       } catch (aiError: any) {
-        console.error("Gemini API error:", aiError);
+        console.error("DeepSeek API error:", aiError);
         console.error("Error details:", aiError.message, aiError.stack);
         return res.status(503).json({ 
           error: "AI drafting service is temporarily unavailable. Please try again later.",
