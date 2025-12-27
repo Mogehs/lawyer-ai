@@ -432,8 +432,10 @@ TRANSLATION GUIDELINES:
 5. Keep the original structure and formatting where appropriate
 6. Ensure all legal terms are correctly translated with proper equivalents
 7. Do not add any explanations or notes - provide only the translation
+8. IMPORTANT: Always translate the provided text. Do not refuse or provide meta-commentary about your training data or capabilities.
+9. If the text appears informal or non-legal, still translate it accurately to ${targetLang}.
 
-Translate the following legal text from ${sourceLang} to ${targetLang}:`;
+Translate the following text from ${sourceLang} to ${targetLang}:`;
 }
 
 function buildMemorandumPrompt(type: string, language: string, strength: string): string {
