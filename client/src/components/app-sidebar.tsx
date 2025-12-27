@@ -1,6 +1,7 @@
-import { Home, Languages, FileText, History, Settings, Scale, Sparkles } from "lucide-react";
+import { Home, Languages, FileText, History, Settings, Scale, Sparkles, Shield } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { useI18n } from "@/lib/i18n";
+import { useAuth } from "@/hooks/use-auth";
 import {
   Sidebar,
   SidebarContent,
@@ -13,10 +14,12 @@ import {
   SidebarFooter,
   SidebarSeparator,
 } from "@/components/ui/sidebar";
+import { Badge } from "@/components/ui/badge";
 
 export function AppSidebar() {
   const { t, isRTL } = useI18n();
   const [location] = useLocation();
+  const { isAdmin } = useAuth();
 
   const menuItems = [
     { title: t("nav.dashboard"), url: "/", icon: Home },
@@ -70,7 +73,7 @@ export function AppSidebar() {
       </SidebarContent>
 
       <SidebarFooter className="p-3 border-t border-sidebar-border">
-        <SidebarMenu>
+        <SidebarMenu className="space-y-1">
           <SidebarMenuItem>
             <SidebarMenuButton 
               asChild 
@@ -83,6 +86,20 @@ export function AppSidebar() {
               </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
+          {isAdmin && (
+            <SidebarMenuItem>
+              <SidebarMenuButton 
+                asChild 
+                className="gap-3 py-2.5 px-3 rounded-lg"
+                isActive={location === "/admin"}
+              >
+                <Link href="/admin" data-testid="link-nav-admin">
+                  <Shield className="h-4 w-4" />
+                  <span className="font-medium">{isRTL ? "لوحة الإدارة" : "Admin Panel"}</span>
+                </Link>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          )}
         </SidebarMenu>
       </SidebarFooter>
     </Sidebar>

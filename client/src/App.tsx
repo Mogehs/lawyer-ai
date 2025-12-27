@@ -30,6 +30,7 @@ import Translation from "@/pages/translation";
 import Memorandum from "@/pages/memorandum";
 import History from "@/pages/history";
 import Settings from "@/pages/settings";
+import AdminPage from "@/pages/admin";
 import AuthPage from "@/pages/auth";
 import NotFound from "@/pages/not-found";
 
@@ -41,6 +42,7 @@ function Router() {
       <Route path="/memorandum" component={Memorandum} />
       <Route path="/history" component={History} />
       <Route path="/settings" component={Settings} />
+      <Route path="/admin" component={AdminPage} />
       <Route component={NotFound} />
     </Switch>
   );
