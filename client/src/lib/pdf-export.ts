@@ -1,4 +1,5 @@
 import { jsPDF } from "jspdf";
+import ArabicReshaper from "arabic-reshaper";
 import { registerAmiriFont } from "./fonts/amiri-font";
 
 interface ExportTranslationOptions {
@@ -30,11 +31,47 @@ const memoTypeLabels: Record<string, { en: string; ar: string }> = {
   legal_motion: { en: "Legal Motion", ar: "طلب قانوني" },
 };
 
-function wrapTextForPDF(
-  doc: jsPDF,
-  text: string,
-  maxWidth: number
-): string[] {
+function reshapeArabic(text: string): string {
+  try {
+    return ArabicReshaper.convertArabic(text);
+  } catch {
+    return text;
+  }
+}
+
+function wrapArabicText(text: string, charsPerLine: number): string[] {
+  const lines: string[] = [];
+  const paragraphs = text.split("\n");
+
+  for (const paragraph of paragraphs) {
+    if (paragraph.trim() === "") {
+      lines.push("");
+      continue;
+    }
+    
+    const words = paragraph.split(" ");
+    let currentLine = "";
+    
+    for (const word of words) {
+      const testLine = currentLine ? `${currentLine} ${word}` : word;
+      if (testLine.length > charsPerLine) {
+        if (currentLine) {
+          lines.push(reshapeArabic(currentLine));
+        }
+        currentLine = word;
+      } else {
+        currentLine = testLine;
+      }
+    }
+    
+    if (currentLine) {
+      lines.push(reshapeArabic(currentLine));
+    }
+  }
+  return lines;
+}
+
+function wrapEnglishText(doc: jsPDF, text: string, maxWidth: number): string[] {
   const lines: string[] = [];
   const paragraphs = text.split("\n");
 
@@ -66,7 +103,8 @@ function addDisclaimer(doc: jsPDF, yPos: number, pageWidth: number, margin: numb
   
   if (isArabic) {
     doc.setFont("Amiri", "normal");
-    doc.text("مسودة - يتطلب مراجعة المحامي قبل الاستخدام", pageWidth - margin, yPos, { align: "right" });
+    const reshapedDisclaimer = reshapeArabic("مسودة - يتطلب مراجعة المحامي قبل الاستخدام");
+    doc.text(reshapedDisclaimer, pageWidth - margin, yPos, { align: "right" });
     yPos += 5;
     doc.setFont("helvetica", "normal");
     doc.text("AI-Generated Draft - Requires Lawyer Review", pageWidth / 2, yPos, { align: "center" });
@@ -109,7 +147,8 @@ export function exportTranslationToPDF(options: ExportTranslationOptions): void 
   if (isArabicUI) {
     doc.setFont("Amiri", "normal");
     doc.setFontSize(14);
-    doc.text("وثيقة ترجمة قانونية", pageWidth / 2, yPos, { align: "center" });
+    const reshapedTitle = reshapeArabic("وثيقة ترجمة قانونية");
+    doc.text(reshapedTitle, pageWidth / 2, yPos, { align: "center" });
     yPos += 10;
   } else {
     yPos += 5;
@@ -171,12 +210,20 @@ export function exportTranslationToPDF(options: ExportTranslationOptions): void 
   }
   doc.setFontSize(10);
   
-  const sourceLines = wrapTextForPDF(doc, sourceText, contentWidth);
+  const sourceLines = isSourceArabic 
+    ? wrapArabicText(sourceText, 70) 
+    : wrapEnglishText(doc, sourceText, contentWidth);
   
   for (const line of sourceLines) {
     if (yPos > pageHeight - margin - 20) {
       doc.addPage();
       yPos = margin;
+      if (isSourceArabic) {
+        doc.setFont("Amiri", "normal");
+      } else {
+        doc.setFont("helvetica", "normal");
+      }
+      doc.setFontSize(10);
     }
     if (isSourceArabic) {
       doc.text(line, pageWidth - margin, yPos, { align: "right" });
@@ -210,12 +257,20 @@ export function exportTranslationToPDF(options: ExportTranslationOptions): void 
   }
   doc.setFontSize(10);
   
-  const translatedLines = wrapTextForPDF(doc, translatedText, contentWidth);
+  const translatedLines = isTargetArabic 
+    ? wrapArabicText(translatedText, 70) 
+    : wrapEnglishText(doc, translatedText, contentWidth);
   
   for (const line of translatedLines) {
     if (yPos > pageHeight - margin - 20) {
       doc.addPage();
       yPos = margin;
+      if (isTargetArabic) {
+        doc.setFont("Amiri", "normal");
+      } else {
+        doc.setFont("helvetica", "normal");
+      }
+      doc.setFontSize(10);
     }
     if (isTargetArabic) {
       doc.text(line, pageWidth - margin, yPos, { align: "right" });
@@ -249,7 +304,8 @@ export function exportMemoToPDF(options: ExportMemoOptions): void {
   if (isArabic) {
     doc.setFont("Amiri", "normal");
     doc.setFontSize(18);
-    doc.text(typeLabel.ar, pageWidth / 2, yPos, { align: "center" });
+    const reshapedTitle = reshapeArabic(typeLabel.ar);
+    doc.text(reshapedTitle, pageWidth / 2, yPos, { align: "center" });
     yPos += 10;
     doc.setFont("helvetica", "bold");
     doc.setFontSize(12);
@@ -284,13 +340,17 @@ export function exportMemoToPDF(options: ExportMemoOptions): void {
   
   if (isArabic) {
     doc.setFont("Amiri", "normal");
-    doc.text("معلومات القضية:", pageWidth - margin, yPos, { align: "right" });
+    const caseInfoLabel = reshapeArabic("معلومات القضية:");
+    doc.text(caseInfoLabel, pageWidth - margin, yPos, { align: "right" });
     yPos += 8;
-    doc.text(`المحكمة: ${courtName}`, pageWidth - margin - 5, yPos, { align: "right" });
+    const courtLabel = reshapeArabic(`المحكمة: ${courtName}`);
+    doc.text(courtLabel, pageWidth - margin - 5, yPos, { align: "right" });
     yPos += 6;
-    doc.text(`رقم القضية: ${caseNumber}`, pageWidth - margin - 5, yPos, { align: "right" });
+    const caseLabel = reshapeArabic(`رقم القضية: ${caseNumber}`);
+    doc.text(caseLabel, pageWidth - margin - 5, yPos, { align: "right" });
     yPos += 6;
-    doc.text("اللغة: العربية", pageWidth - margin - 5, yPos, { align: "right" });
+    const langLabel = reshapeArabic("اللغة: العربية");
+    doc.text(langLabel, pageWidth - margin - 5, yPos, { align: "right" });
   } else {
     doc.setFont("helvetica", "bold");
     doc.text("Case Information:", margin, yPos);
@@ -311,7 +371,8 @@ export function exportMemoToPDF(options: ExportMemoOptions): void {
   if (isArabic) {
     doc.setFont("Amiri", "normal");
     doc.setFontSize(12);
-    doc.text("نص المذكرة:", pageWidth - margin, yPos, { align: "right" });
+    const contentLabel = reshapeArabic("نص المذكرة:");
+    doc.text(contentLabel, pageWidth - margin, yPos, { align: "right" });
   } else {
     doc.setFont("helvetica", "bold");
     doc.setFontSize(12);
@@ -326,7 +387,9 @@ export function exportMemoToPDF(options: ExportMemoOptions): void {
   }
   doc.setFontSize(10);
   
-  const contentLines = wrapTextForPDF(doc, content, contentWidth);
+  const contentLines = isArabic 
+    ? wrapArabicText(content, 70) 
+    : wrapEnglishText(doc, content, contentWidth);
   
   for (const line of contentLines) {
     if (yPos > pageHeight - margin - 20) {
@@ -368,9 +431,11 @@ export function exportMemoToPDF(options: ExportMemoOptions): void {
   
   if (isArabic) {
     doc.setFont("Amiri", "normal");
-    doc.text("هذه الوثيقة مسودة تم إنشاؤها بواسطة الذكاء الاصطناعي", pageWidth / 2, yPos, { align: "center" });
+    const footer1 = reshapeArabic("هذه الوثيقة مسودة تم إنشاؤها بواسطة الذكاء الاصطناعي");
+    doc.text(footer1, pageWidth / 2, yPos, { align: "center" });
     yPos += 5;
-    doc.text("يجب مراجعتها من قبل محامٍ مؤهل قبل الاستخدام", pageWidth / 2, yPos, { align: "center" });
+    const footer2 = reshapeArabic("يجب مراجعتها من قبل محامٍ مؤهل قبل الاستخدام");
+    doc.text(footer2, pageWidth / 2, yPos, { align: "center" });
     yPos += 8;
   }
   
