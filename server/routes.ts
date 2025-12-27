@@ -4,7 +4,7 @@ import { storage } from "./storage";
 import OpenAI from "openai";
 import { z } from "zod";
 import { documentTypes, documentPurposes, writingTones, jurisdictions, memorandumTypes, memoStrengths, insertSiteSettingsSchema } from "@shared/schema";
-import { setupAuth, registerAuthRoutes, isAuthenticated, isAdmin, attachUser, type AuthenticatedRequest } from "./auth";
+import { setupAuth, registerAuthRoutes, isAuthenticated, isAdmin, attachUser, logAudit, type AuthenticatedRequest } from "./auth";
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY || process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
@@ -123,6 +123,16 @@ export async function registerRoutes(
         jurisdiction,
       });
 
+      const user = await storage.getUserById(userId);
+      if (user) {
+        await logAudit(userId, user.email, "translation_create", req, { 
+          translationId: translation.id, 
+          documentType, 
+          sourceLanguage, 
+          targetLanguage 
+        });
+      }
+
       res.json(translation);
     } catch (error) {
       console.error("Error translating:", error);
@@ -130,8 +140,13 @@ export async function registerRoutes(
     }
   });
 
-  app.delete("/api/translations/:id", isAuthenticated, async (req, res) => {
+  app.delete("/api/translations/:id", isAuthenticated, async (req: Request, res) => {
     try {
+      const userId = getUserId(req);
+      const user = await storage.getUserById(userId);
+      if (user) {
+        await logAudit(userId, user.email, "translation_delete", req, { translationId: req.params.id });
+      }
       await storage.deleteTranslation(req.params.id);
       res.status(204).send();
     } catch (error) {
@@ -217,6 +232,16 @@ export async function registerRoutes(
         generatedContent,
       });
 
+      const user = await storage.getUserById(userId);
+      if (user) {
+        await logAudit(userId, user.email, "memorandum_create", req, { 
+          memorandumId: memorandum.id, 
+          type, 
+          language,
+          caseNumber 
+        });
+      }
+
       res.json(memorandum);
     } catch (error) {
       console.error("Error generating memorandum:", error);
@@ -224,8 +249,13 @@ export async function registerRoutes(
     }
   });
 
-  app.delete("/api/memorandums/:id", isAuthenticated, async (req, res) => {
+  app.delete("/api/memorandums/:id", isAuthenticated, async (req: Request, res) => {
     try {
+      const userId = getUserId(req);
+      const user = await storage.getUserById(userId);
+      if (user) {
+        await logAudit(userId, user.email, "memorandum_delete", req, { memorandumId: req.params.id });
+      }
       await storage.deleteMemorandum(req.params.id);
       res.status(204).send();
     } catch (error) {
@@ -279,6 +309,11 @@ export async function registerRoutes(
         });
       }
 
+      const authReq = req as AuthenticatedRequest;
+      if (authReq.user) {
+        await logAudit(authReq.user.id, authReq.user.email, "settings_update", req, parseResult.data);
+      }
+
       const settings = await storage.updateSiteSettings(parseResult.data);
       res.json(settings);
     } catch (error) {
@@ -305,6 +340,18 @@ export async function registerRoutes(
         return res.status(400).json({ error: "Invalid role" });
       }
 
+      const authReq = req as AuthenticatedRequest;
+      const targetUser = await storage.getUserById(req.params.id);
+      
+      if (authReq.user && targetUser) {
+        await logAudit(authReq.user.id, authReq.user.email, "user_role_update", req, { 
+          targetUserId: req.params.id, 
+          targetUserEmail: targetUser.email,
+          newRole: role,
+          previousRole: targetUser.role
+        });
+      }
+
       const user = await storage.updateUser(req.params.id, { role } as any);
       if (!user) {
         return res.status(404).json({ error: "User not found" });
@@ -315,6 +362,17 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Error updating user role:", error);
       res.status(500).json({ error: "Failed to update user role" });
+    }
+  });
+
+  app.get("/api/admin/audit-logs", isAuthenticated, attachUser, isAdmin, async (req: Request, res) => {
+    try {
+      const limit = parseInt(req.query.limit as string) || 100;
+      const logs = await storage.getAuditLogs(Math.min(limit, 500));
+      res.json(logs);
+    } catch (error) {
+      console.error("Error fetching audit logs:", error);
+      res.status(500).json({ error: "Failed to fetch audit logs" });
     }
   });
 

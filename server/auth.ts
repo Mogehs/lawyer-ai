@@ -6,6 +6,36 @@ import { registerSchema, loginSchema, type User } from "@shared/schema";
 import connectPgSimple from "connect-pg-simple";
 import { pool } from "./db";
 
+function getClientInfo(req: Request) {
+  const ipAddress = req.ip || req.headers["x-forwarded-for"]?.toString() || req.socket.remoteAddress || null;
+  const userAgent = req.headers["user-agent"] || null;
+  return { ipAddress, userAgent };
+}
+
+async function logAudit(
+  userId: string,
+  userEmail: string,
+  action: string,
+  req: Request,
+  details?: Record<string, any>
+) {
+  try {
+    const { ipAddress, userAgent } = getClientInfo(req);
+    await storage.createAuditLog({
+      userId,
+      userEmail,
+      action,
+      details: details || null,
+      ipAddress,
+      userAgent,
+    });
+  } catch (error) {
+    console.error("Failed to create audit log:", error);
+  }
+}
+
+export { logAudit };
+
 declare module "express-session" {
   interface SessionData {
     userId?: string;
@@ -75,6 +105,8 @@ export function registerAuthRoutes(app: Express) {
 
       req.session.userId = user.id;
 
+      await logAudit(user.id, user.email, "register", req, { firstName, lastName });
+
       const { passwordHash: _, ...userWithoutPassword } = user;
       res.status(201).json(userWithoutPassword);
     } catch (error) {
@@ -107,6 +139,8 @@ export function registerAuthRoutes(app: Express) {
 
       req.session.userId = user.id;
 
+      await logAudit(user.id, user.email, "login", req);
+
       const { passwordHash: _, ...userWithoutPassword } = user;
       res.json(userWithoutPassword);
     } catch (error) {
@@ -115,7 +149,14 @@ export function registerAuthRoutes(app: Express) {
     }
   });
 
-  app.post("/api/auth/logout", (req: Request, res: Response) => {
+  app.post("/api/auth/logout", async (req: Request, res: Response) => {
+    const userId = req.session.userId;
+    if (userId) {
+      const user = await storage.getUserById(userId);
+      if (user) {
+        await logAudit(user.id, user.email, "logout", req);
+      }
+    }
     req.session.destroy((err) => {
       if (err) {
         console.error("Logout error:", err);
