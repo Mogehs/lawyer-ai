@@ -1,16 +1,385 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
+import OpenAI from "openai";
+import { z } from "zod";
+import { insertTranslationSchema, insertMemorandumSchema, documentTypes, documentPurposes, writingTones, jurisdictions, memorandumTypes, memoStrengths } from "@shared/schema";
+
+const openai = new OpenAI({
+  apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
+  baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
+});
+
+const translateRequestSchema = z.object({
+  sourceText: z.string().min(1, "Source text is required"),
+  sourceLanguage: z.enum(["ar", "en"]),
+  targetLanguage: z.enum(["ar", "en"]),
+  documentType: z.enum(documentTypes),
+  purpose: z.enum(documentPurposes),
+  tone: z.enum(writingTones),
+  jurisdiction: z.enum(jurisdictions),
+});
+
+const generateMemoRequestSchema = z.object({
+  type: z.enum(memorandumTypes),
+  language: z.enum(["ar", "en"]),
+  courtName: z.string().min(1, "Court name is required"),
+  caseNumber: z.string().min(1, "Case number is required"),
+  caseFacts: z.string().min(1, "Case facts are required"),
+  legalRequests: z.string().min(1, "Legal requests are required"),
+  defensePoints: z.string().optional(),
+  strength: z.enum(memoStrengths),
+});
+
+function isOpenAIConfigured(): boolean {
+  return !!(process.env.AI_INTEGRATIONS_OPENAI_API_KEY && process.env.AI_INTEGRATIONS_OPENAI_BASE_URL);
+}
 
 export async function registerRoutes(
   httpServer: Server,
   app: Express
 ): Promise<Server> {
-  // put application routes here
-  // prefix all routes with /api
 
-  // use storage to perform CRUD operations on the storage interface
-  // e.g. storage.insertUser(user) or storage.getUserByUsername(username)
+  app.get("/api/translations", async (req, res) => {
+    try {
+      const translations = await storage.getTranslations();
+      res.json(translations);
+    } catch (error) {
+      console.error("Error fetching translations:", error);
+      res.status(500).json({ error: "Failed to fetch translations" });
+    }
+  });
+
+  app.get("/api/translations/:id", async (req, res) => {
+    try {
+      const translation = await storage.getTranslation(req.params.id);
+      if (!translation) {
+        return res.status(404).json({ error: "Translation not found" });
+      }
+      res.json(translation);
+    } catch (error) {
+      console.error("Error fetching translation:", error);
+      res.status(500).json({ error: "Failed to fetch translation" });
+    }
+  });
+
+  app.post("/api/translate", async (req, res) => {
+    try {
+      const parseResult = translateRequestSchema.safeParse(req.body);
+      if (!parseResult.success) {
+        return res.status(400).json({ 
+          error: "Invalid request data", 
+          details: parseResult.error.errors 
+        });
+      }
+
+      const { sourceText, sourceLanguage, targetLanguage, documentType, purpose, tone, jurisdiction } = parseResult.data;
+
+      if (!isOpenAIConfigured()) {
+        return res.status(503).json({ 
+          error: "AI service is not configured. Please contact your administrator." 
+        });
+      }
+
+      const systemPrompt = buildTranslationPrompt(sourceLanguage, targetLanguage, documentType, purpose, tone, jurisdiction);
+
+      let translatedText: string;
+      try {
+        const completion = await openai.chat.completions.create({
+          model: "gpt-4o",
+          messages: [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: sourceText }
+          ],
+          max_completion_tokens: 4096,
+        });
+        translatedText = completion.choices[0]?.message?.content || "";
+      } catch (aiError) {
+        console.error("OpenAI API error:", aiError);
+        return res.status(503).json({ 
+          error: "AI translation service is temporarily unavailable. Please try again later." 
+        });
+      }
+
+      const translation = await storage.createTranslation({
+        sourceLanguage,
+        targetLanguage,
+        sourceText,
+        translatedText,
+        documentType,
+        purpose,
+        tone,
+        jurisdiction,
+      });
+
+      res.json(translation);
+    } catch (error) {
+      console.error("Error translating:", error);
+      res.status(500).json({ error: "Failed to translate text" });
+    }
+  });
+
+  app.delete("/api/translations/:id", async (req, res) => {
+    try {
+      await storage.deleteTranslation(req.params.id);
+      res.status(204).send();
+    } catch (error) {
+      console.error("Error deleting translation:", error);
+      res.status(500).json({ error: "Failed to delete translation" });
+    }
+  });
+
+  app.get("/api/memorandums", async (req, res) => {
+    try {
+      const memorandums = await storage.getMemorandums();
+      res.json(memorandums);
+    } catch (error) {
+      console.error("Error fetching memorandums:", error);
+      res.status(500).json({ error: "Failed to fetch memorandums" });
+    }
+  });
+
+  app.get("/api/memorandums/:id", async (req, res) => {
+    try {
+      const memorandum = await storage.getMemorandum(req.params.id);
+      if (!memorandum) {
+        return res.status(404).json({ error: "Memorandum not found" });
+      }
+      res.json(memorandum);
+    } catch (error) {
+      console.error("Error fetching memorandum:", error);
+      res.status(500).json({ error: "Failed to fetch memorandum" });
+    }
+  });
+
+  app.post("/api/memorandums/generate", async (req, res) => {
+    try {
+      const parseResult = generateMemoRequestSchema.safeParse(req.body);
+      if (!parseResult.success) {
+        return res.status(400).json({ 
+          error: "Invalid request data", 
+          details: parseResult.error.errors 
+        });
+      }
+
+      const { type, language, courtName, caseNumber, caseFacts, legalRequests, defensePoints, strength } = parseResult.data;
+
+      if (!isOpenAIConfigured()) {
+        return res.status(503).json({ 
+          error: "AI service is not configured. Please contact your administrator." 
+        });
+      }
+
+      const systemPrompt = buildMemorandumPrompt(type, language, strength);
+      const userPrompt = buildMemorandumUserPrompt(language, courtName, caseNumber, caseFacts, legalRequests, defensePoints);
+
+      let generatedContent: string;
+      try {
+        const completion = await openai.chat.completions.create({
+          model: "gpt-4o",
+          messages: [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: userPrompt }
+          ],
+          max_completion_tokens: 8192,
+        });
+        generatedContent = completion.choices[0]?.message?.content || "";
+      } catch (aiError) {
+        console.error("OpenAI API error:", aiError);
+        return res.status(503).json({ 
+          error: "AI drafting service is temporarily unavailable. Please try again later." 
+        });
+      }
+
+      const memorandum = await storage.createMemorandum({
+        type,
+        language,
+        courtName,
+        caseNumber,
+        caseFacts,
+        legalRequests,
+        defensePoints,
+        strength,
+        generatedContent,
+      });
+
+      res.json(memorandum);
+    } catch (error) {
+      console.error("Error generating memorandum:", error);
+      res.status(500).json({ error: "Failed to generate memorandum" });
+    }
+  });
+
+  app.delete("/api/memorandums/:id", async (req, res) => {
+    try {
+      await storage.deleteMemorandum(req.params.id);
+      res.status(204).send();
+    } catch (error) {
+      console.error("Error deleting memorandum:", error);
+      res.status(500).json({ error: "Failed to delete memorandum" });
+    }
+  });
 
   return httpServer;
+}
+
+function buildTranslationPrompt(
+  sourceLanguage: string,
+  targetLanguage: string,
+  documentType: string,
+  purpose: string,
+  tone: string,
+  jurisdiction: string
+): string {
+  const sourceLang = sourceLanguage === "ar" ? "Arabic" : "English";
+  const targetLang = targetLanguage === "ar" ? "Arabic" : "English";
+
+  const documentTypeMap: Record<string, string> = {
+    legal_memorandum: "legal memorandum",
+    contract: "contract",
+    statement_of_claim: "statement of claim",
+    court_judgment: "court judgment",
+    legal_correspondence: "legal correspondence",
+  };
+
+  const purposeMap: Record<string, string> = {
+    court: "court submission",
+    internal: "internal use",
+    client: "client communication",
+  };
+
+  const toneMap: Record<string, string> = {
+    formal: "highly formal and ceremonial",
+    professional: "professional and business-like",
+    concise: "clear and concise",
+  };
+
+  const jurisdictionMap: Record<string, string> = {
+    qatar: "Qatari legal system",
+    gcc: "GCC regional legal standards",
+    neutral: "international legal standards",
+  };
+
+  return `You are an expert legal translator specializing in ${sourceLang} to ${targetLang} translation for legal documents.
+
+DOCUMENT TYPE: ${documentTypeMap[documentType] || documentType}
+PURPOSE: ${purposeMap[purpose] || purpose}
+TONE: ${toneMap[tone] || tone}
+JURISDICTION: ${jurisdictionMap[jurisdiction] || jurisdiction}
+
+TRANSLATION GUIDELINES:
+1. Provide context-aware legal translation (not literal word-for-word)
+2. Preserve legal terminology accuracy and precision
+3. Maintain court-appropriate formal tone
+4. Use jurisdiction-specific legal wording and phrasing
+5. Keep the original structure and formatting where appropriate
+6. Ensure all legal terms are correctly translated with proper equivalents
+7. Do not add any explanations or notes - provide only the translation
+
+Translate the following legal text from ${sourceLang} to ${targetLang}:`;
+}
+
+function buildMemorandumPrompt(type: string, language: string, strength: string): string {
+  const isArabic = language === "ar";
+
+  const typeMap: Record<string, { en: string; ar: string }> = {
+    defense_memorandum: { en: "Defense Memorandum", ar: "مذكرة دفاع" },
+    response_memorandum: { en: "Response Memorandum", ar: "مذكرة رد" },
+    reply_memorandum: { en: "Reply Memorandum", ar: "مذكرة جوابية" },
+    statement_of_claim: { en: "Statement of Claim", ar: "صحيفة دعوى" },
+    appeal_memorandum: { en: "Appeal Memorandum", ar: "مذكرة استئناف" },
+    legal_motion: { en: "Legal Motion", ar: "طلب قانوني" },
+  };
+
+  const strengthMap: Record<string, { en: string; ar: string }> = {
+    strong: { en: "assertive and compelling", ar: "قوية ومقنعة" },
+    neutral: { en: "balanced and objective", ar: "متوازنة وموضوعية" },
+    defensive: { en: "cautious and protective", ar: "حذرة ودفاعية" },
+  };
+
+  const docType = typeMap[type] || { en: type, ar: type };
+  const strengthStyle = strengthMap[strength] || { en: strength, ar: strength };
+
+  if (isArabic) {
+    return `أنت محامٍ خبير متخصص في صياغة المذكرات القانونية باللغة العربية.
+
+نوع المذكرة: ${docType.ar}
+أسلوب الصياغة: ${strengthStyle.ar}
+
+إرشادات الصياغة:
+1. استخدم اللغة القانونية العربية الفصحى المناسبة للمحاكم
+2. اتبع الهيكل القانوني المعتمد في المحاكم
+3. قدم تحليلاً قانونياً منطقياً للوقائع
+4. استخدم العبارات القانونية الرسمية والمعتمدة
+5. تجنب الاستشهاد بقوانين أو مواد غير موجودة
+6. اجعل الحجج القانونية قوية ومتماسكة
+7. اختم المذكرة بالطلبات بشكل واضح ومحدد
+
+قم بصياغة المذكرة القانونية بناءً على المعلومات التالية:`;
+  }
+
+  return `You are an expert lawyer specializing in drafting legal memorandums in English.
+
+DOCUMENT TYPE: ${docType.en}
+WRITING STYLE: ${strengthStyle.en}
+
+DRAFTING GUIDELINES:
+1. Use formal legal English appropriate for court submissions
+2. Follow standard legal document structure
+3. Provide logical legal analysis of the facts
+4. Use established legal terminology and phrasing
+5. Do not cite non-existent laws or case references
+6. Make arguments coherent and well-structured
+7. Conclude with clear and specific requests/prayers
+
+Draft the legal memorandum based on the following information:`;
+}
+
+function buildMemorandumUserPrompt(
+  language: string,
+  courtName: string,
+  caseNumber: string,
+  caseFacts: string,
+  legalRequests: string,
+  defensePoints?: string
+): string {
+  const isArabic = language === "ar";
+
+  if (isArabic) {
+    let prompt = `اسم المحكمة: ${courtName}
+رقم القضية: ${caseNumber}
+
+وقائع القضية:
+${caseFacts}
+
+الطلبات القانونية:
+${legalRequests}`;
+
+    if (defensePoints) {
+      prompt += `
+
+نقاط الدفاع:
+${defensePoints}`;
+    }
+
+    return prompt;
+  }
+
+  let prompt = `Court Name: ${courtName}
+Case Number: ${caseNumber}
+
+Case Facts:
+${caseFacts}
+
+Legal Requests:
+${legalRequests}`;
+
+  if (defensePoints) {
+    prompt += `
+
+Defense Points:
+${defensePoints}`;
+  }
+
+  return prompt;
 }
