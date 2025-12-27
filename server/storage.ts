@@ -5,6 +5,7 @@ import {
   memorandumVersions,
   users,
   siteSettings,
+  auditLogs,
   type Translation, 
   type InsertTranslation, 
   type Memorandum, 
@@ -12,7 +13,9 @@ import {
   type User,
   type UpsertUser,
   type SiteSettings,
-  type InsertSiteSettings
+  type InsertSiteSettings,
+  type AuditLog,
+  type InsertAuditLog
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc } from "drizzle-orm";
@@ -38,6 +41,9 @@ export interface IStorage {
 
   getSiteSettings(): Promise<SiteSettings | undefined>;
   updateSiteSettings(data: InsertSiteSettings): Promise<SiteSettings>;
+
+  createAuditLog(data: InsertAuditLog): Promise<AuditLog>;
+  getAuditLogs(limit?: number): Promise<AuditLog[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -257,6 +263,23 @@ export class DatabaseStorage implements IStorage {
         .returning();
       return result;
     }
+  }
+
+  async createAuditLog(data: InsertAuditLog): Promise<AuditLog> {
+    const [result] = await db
+      .insert(auditLogs)
+      .values(data)
+      .returning();
+    return result;
+  }
+
+  async getAuditLogs(limit: number = 100): Promise<AuditLog[]> {
+    const results = await db
+      .select()
+      .from(auditLogs)
+      .orderBy(desc(auditLogs.createdAt))
+      .limit(limit);
+    return results;
   }
 }
 
