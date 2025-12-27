@@ -101,48 +101,43 @@ function UserMenu() {
 }
 
 function AppLayout() {
-  const { isRTL } = useI18n();
-
   const sidebarStyle = {
     "--sidebar-width": "16rem",
     "--sidebar-width-icon": "3rem",
   } as React.CSSProperties;
 
   return (
-    <div dir={isRTL ? "rtl" : "ltr"}>
-      <SidebarProvider style={sidebarStyle}>
-        <div className={`flex h-screen w-full ${isRTL ? "flex-row-reverse" : ""}`}>
-          <AppSidebar />
-          <SidebarInset className="flex flex-col flex-1 min-w-0">
-            <header className="flex items-center justify-between gap-4 px-4 h-14 border-b bg-background/80 backdrop-blur-lg supports-[backdrop-filter]:bg-background/60 sticky top-0 z-50 shrink-0">
-              <div className="flex items-center gap-3">
-                <SidebarTrigger data-testid="button-sidebar-toggle" />
-              </div>
-              <div className="flex items-center gap-1">
-                <LanguageToggle />
-                <ThemeToggle />
-                <div className="w-px h-6 bg-border mx-2" />
-                <UserMenu />
-              </div>
-            </header>
-            <AIDisclaimer />
-            <main className="flex-1 overflow-auto bg-background">
-              <Router />
-            </main>
-          </SidebarInset>
-        </div>
-      </SidebarProvider>
-    </div>
+    <SidebarProvider style={sidebarStyle}>
+      <div className="flex h-screen w-full">
+        <AppSidebar />
+        <SidebarInset className="flex flex-col flex-1 min-w-0">
+          <header className="flex items-center justify-between gap-4 px-4 h-14 border-b bg-background/80 backdrop-blur-lg supports-[backdrop-filter]:bg-background/60 sticky top-0 z-50 shrink-0">
+            <div className="flex items-center gap-3">
+              <SidebarTrigger data-testid="button-sidebar-toggle" />
+            </div>
+            <div className="flex items-center gap-1">
+              <LanguageToggle />
+              <ThemeToggle />
+              <div className="w-px h-6 bg-border mx-2" />
+              <UserMenu />
+            </div>
+          </header>
+          <AIDisclaimer />
+          <main className="flex-1 overflow-auto bg-background">
+            <Router />
+          </main>
+        </SidebarInset>
+      </div>
+    </SidebarProvider>
   );
 }
 
 function AuthenticatedApp() {
   const { user, isLoading } = useAuth();
-  const { isRTL } = useI18n();
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center" dir={isRTL ? "rtl" : "ltr"}>
+      <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="animate-pulse flex flex-col items-center gap-4">
           <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-[hsl(220,60%,30%)] to-[hsl(220,50%,20%)] flex items-center justify-center shadow-lg">
             <Scale className="w-7 h-7 text-white/50" />
