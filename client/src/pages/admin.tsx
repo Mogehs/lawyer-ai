@@ -34,9 +34,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Shield, Users, Image, Type, Save, Loader2 } from "lucide-react";
-import type { User, SiteSettings } from "@shared/schema";
+import { Shield, Users, Image, Type, Save, Loader2, ScrollText, Clock } from "lucide-react";
+import type { User, SiteSettings, AuditLog } from "@shared/schema";
 import { Redirect } from "wouter";
+import { format } from "date-fns";
+import { ar, enUS } from "date-fns/locale";
 
 const settingsSchema = z.object({
   logoUrl: z.string().optional().nullable(),
@@ -61,6 +63,11 @@ export default function AdminPage() {
 
   const { data: users, isLoading: usersLoading } = useQuery<UserWithoutPassword[]>({
     queryKey: ["/api/admin/users"],
+    enabled: isAdmin,
+  });
+
+  const { data: auditLogs, isLoading: logsLoading } = useQuery<AuditLog[]>({
+    queryKey: ["/api/admin/audit-logs"],
     enabled: isAdmin,
   });
 
@@ -344,7 +351,92 @@ export default function AdminPage() {
             )}
           </CardContent>
         </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base flex items-center gap-2">
+              <ScrollText className="h-4 w-4" />
+              {isRTL ? "سجل المراجعة" : "Audit Log"}
+            </CardTitle>
+            <CardDescription>
+              {isRTL
+                ? "تتبع جميع الإجراءات في النظام"
+                : "Track all actions in the system"}
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {logsLoading ? (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+              </div>
+            ) : auditLogs && auditLogs.length > 0 ? (
+              <div className="border rounded-lg overflow-hidden">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>{isRTL ? "التاريخ" : "Date"}</TableHead>
+                      <TableHead>{isRTL ? "المستخدم" : "User"}</TableHead>
+                      <TableHead>{isRTL ? "الإجراء" : "Action"}</TableHead>
+                      <TableHead>{isRTL ? "التفاصيل" : "Details"}</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {auditLogs.map((log) => (
+                      <TableRow key={log.id} data-testid={`row-audit-${log.id}`}>
+                        <TableCell className="text-sm whitespace-nowrap">
+                          <div className="flex items-center gap-1.5">
+                            <Clock className="h-3.5 w-3.5 text-muted-foreground" />
+                            {log.createdAt 
+                              ? format(new Date(log.createdAt), "PPp", { 
+                                  locale: isRTL ? ar : enUS 
+                                })
+                              : "-"}
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-muted-foreground">
+                          {log.userEmail}
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant="outline" className="text-xs">
+                            {formatAction(log.action, isRTL)}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-sm text-muted-foreground max-w-[200px] truncate">
+                          {log.details ? JSON.stringify(log.details) : "-"}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            ) : (
+              <p className="text-center text-muted-foreground py-8">
+                {isRTL ? "لا توجد سجلات" : "No audit logs found"}
+              </p>
+            )}
+          </CardContent>
+        </Card>
       </div>
     </div>
   );
+}
+
+function formatAction(action: string, isRTL: boolean): string {
+  const actionLabels: Record<string, { en: string; ar: string }> = {
+    login: { en: "Login", ar: "تسجيل دخول" },
+    logout: { en: "Logout", ar: "تسجيل خروج" },
+    register: { en: "Register", ar: "تسجيل" },
+    translation_create: { en: "Translation Created", ar: "إنشاء ترجمة" },
+    translation_delete: { en: "Translation Deleted", ar: "حذف ترجمة" },
+    memorandum_create: { en: "Memo Created", ar: "إنشاء مذكرة" },
+    memorandum_delete: { en: "Memo Deleted", ar: "حذف مذكرة" },
+    settings_update: { en: "Settings Updated", ar: "تحديث الإعدادات" },
+    user_role_update: { en: "Role Updated", ar: "تحديث الدور" },
+  };
+  
+  const label = actionLabels[action];
+  if (label) {
+    return isRTL ? label.ar : label.en;
+  }
+  return action;
 }

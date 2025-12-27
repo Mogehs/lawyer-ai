@@ -367,8 +367,9 @@ export async function registerRoutes(
 
   app.get("/api/admin/audit-logs", isAuthenticated, attachUser, isAdmin, async (req: Request, res) => {
     try {
-      const limit = parseInt(req.query.limit as string) || 100;
-      const logs = await storage.getAuditLogs(Math.min(limit, 500));
+      const parsedLimit = parseInt(req.query.limit as string);
+      const limit = Number.isNaN(parsedLimit) || parsedLimit <= 0 ? 100 : Math.min(parsedLimit, 500);
+      const logs = await storage.getAuditLogs(limit);
       res.json(logs);
     } catch (error) {
       console.error("Error fetching audit logs:", error);
