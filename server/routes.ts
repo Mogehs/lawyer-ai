@@ -7,9 +7,9 @@ import { documentTypes, documentPurposes, writingTones, jurisdictions, memorandu
 import { setupAuth, registerAuthRoutes, isAuthenticated, isAdmin, attachUser, logAudit, type AuthenticatedRequest } from "./auth";
 
 const openai = new OpenAI({
-  apiKey: "sk-88cf80c90e884146af4b2b3bef7f8ae3",
-  baseURL: "https://api.deepseek.com",
-});
+  apiKey: "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",
+  baseURL: "https://openrouter.ai/api/v1",
+}); 
 
 const translateRequestSchema = z.object({
   sourceText: z.string().min(1, "Source text is required"),
@@ -32,10 +32,6 @@ const generateMemoRequestSchema = z.object({
   strength: z.enum(memoStrengths),
 });
 
-function isOpenAIConfigured(): boolean {
-  const apiKey = process.env.DEEPSEEK_API_KEY || process.env.OPENAI_API_KEY;
-  return !!apiKey;
-}
 
 function getUserId(req: Request): string {
   return req.session.userId || "";
@@ -86,18 +82,12 @@ export async function registerRoutes(
       const deterministic = req.body.deterministic === true;
       const userId = getUserId(req);
 
-      if (!isOpenAIConfigured()) {
-        return res.status(503).json({ 
-          error: "AI service is not configured. Please contact your administrator." 
-        });
-      }
-
       const systemPrompt = buildTranslationPrompt(sourceLanguage, targetLanguage, documentType, purpose, tone, jurisdiction);
 
       let translatedText: string;
       try {
         const completion = await openai.chat.completions.create({
-          model: "deepseek-chat",
+          model: "openai/gpt-4o-mini",
           messages: [
             { role: "system", content: systemPrompt },
             { role: "user", content: sourceText }
@@ -108,7 +98,7 @@ export async function registerRoutes(
         });
         translatedText = completion.choices[0]?.message?.content || "";
       } catch (aiError: any) {
-        console.error("DeepSeek API error:", aiError);
+        console.error("OpenRouter API error:", aiError);
         console.error("Error details:", aiError.message, aiError.stack);
         return res.status(503).json({ 
           error: "AI translation service is temporarily unavailable. Please try again later.",
@@ -197,19 +187,13 @@ export async function registerRoutes(
       const { type, language, courtName, caseNumber, caseFacts, legalRequests, defensePoints, strength } = parseResult.data;
       const userId = getUserId(req);
 
-      if (!isOpenAIConfigured()) {
-        return res.status(503).json({ 
-          error: "AI service is not configured. Please contact your administrator." 
-        });
-      }
-
       const systemPrompt = buildMemorandumPrompt(type, language, strength);
       const userPrompt = buildMemorandumUserPrompt(language, courtName, caseNumber, caseFacts, legalRequests, defensePoints);
 
       let generatedContent: string;
       try {
         const completion = await openai.chat.completions.create({
-          model: process.env.DEEPSEEK_MODEL || "deepseek-chat",
+          model: "openai/gpt-4o-mini",
           messages: [
             { role: "system", content: systemPrompt },
             { role: "user", content: userPrompt }
@@ -218,7 +202,7 @@ export async function registerRoutes(
         });
         generatedContent = completion.choices[0]?.message?.content || "";
       } catch (aiError: any) {
-        console.error("DeepSeek API error:", aiError);
+        console.error("OpenRouter API error:", aiError);
         console.error("Error details:", aiError.message, aiError.stack);
         return res.status(503).json({ 
           error: "AI drafting service is temporarily unavailable. Please try again later.",

@@ -56,6 +56,11 @@ export async function setupAuth(app: Express) {
 
   app.set("trust proxy", 1);
 
+  // In development, use lax sameSite even with CORS_ORIGIN to allow local testing
+  // In production with CORS, use none + secure for cross-origin requests
+  const cookieSameSite = isProduction && isCrossOrigin ? "none" : "lax";
+  const cookieSecure = isProduction && isCrossOrigin;
+
   app.use(
     session({
       store: new PgSession({
@@ -67,10 +72,10 @@ export async function setupAuth(app: Express) {
       resave: false,
       saveUninitialized: false,
       cookie: {
-        secure: isProduction,
+        secure: cookieSecure,
         httpOnly: true,
         maxAge: 7 * 24 * 60 * 60 * 1000,
-        sameSite: isCrossOrigin ? "none" : "lax",
+        sameSite: cookieSameSite,
       },
     })
   );
