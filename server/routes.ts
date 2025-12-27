@@ -102,13 +102,17 @@ export async function registerRoutes(
           },
         });
         
-        const prompt = `${systemPrompt}\n\n${sourceText}`;
+        const prompt = `${systemPrompt}
+
+${sourceText}`;
         const result = await model.generateContent(prompt);
         translatedText = result.response.text() || "";
-      } catch (aiError) {
+      } catch (aiError: any) {
         console.error("Gemini API error:", aiError);
+        console.error("Error details:", aiError.message, aiError.stack);
         return res.status(503).json({ 
-          error: "AI translation service is temporarily unavailable. Please try again later." 
+          error: "AI translation service is temporarily unavailable. Please try again later.",
+          details: process.env.NODE_ENV === 'development' ? aiError.message : undefined
         });
       }
 
@@ -211,13 +215,17 @@ export async function registerRoutes(
           },
         });
         
-        const prompt = `${systemPrompt}\n\n${userPrompt}`;
+        const prompt = `${systemPrompt}
+
+${userPrompt}`;
         const result = await model.generateContent(prompt);
         generatedContent = result.response.text() || "";
-      } catch (aiError) {
+      } catch (aiError: any) {
         console.error("Gemini API error:", aiError);
+        console.error("Error details:", aiError.message, aiError.stack);
         return res.status(503).json({ 
-          error: "AI drafting service is temporarily unavailable. Please try again later." 
+          error: "AI drafting service is temporarily unavailable. Please try again later.",
+          details: process.env.NODE_ENV === 'development' ? aiError.message : undefined
         });
       }
 
