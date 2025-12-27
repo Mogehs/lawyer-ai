@@ -24,13 +24,13 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { LogOut, User } from "lucide-react";
+import { LogOut, User, Scale } from "lucide-react";
 import Dashboard from "@/pages/dashboard";
 import Translation from "@/pages/translation";
 import Memorandum from "@/pages/memorandum";
 import History from "@/pages/history";
 import Settings from "@/pages/settings";
-import Landing from "@/pages/landing";
+import AuthPage from "@/pages/auth";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -70,7 +70,7 @@ function UserMenu() {
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align={isRTL ? "start" : "end"} className="w-56">
-        <div className="px-2 py-1.5">
+        <div className="px-3 py-2">
           <p className="text-sm font-medium">
             {user.firstName} {user.lastName}
           </p>
@@ -78,22 +78,20 @@ function UserMenu() {
         </div>
         <DropdownMenuSeparator />
         <DropdownMenuItem asChild>
-          <a href="/settings" className="cursor-pointer">
+          <a href="/settings" className="cursor-pointer gap-2">
             <User className="w-4 h-4" />
-            <span className={isRTL ? "mr-2" : "ml-2"}>{t("nav.settings")}</span>
+            {t("nav.settings")}
           </a>
         </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem 
           onClick={() => logout()} 
           disabled={isLoggingOut}
-          className="text-destructive focus:text-destructive cursor-pointer"
+          className="text-destructive focus:text-destructive cursor-pointer gap-2"
           data-testid="button-logout"
         >
           <LogOut className="w-4 h-4" />
-          <span className={isRTL ? "mr-2" : "ml-2"}>
-            {isRTL ? "تسجيل الخروج" : "Sign Out"}
-          </span>
+          {isRTL ? "تسجيل الخروج" : "Sign Out"}
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
@@ -114,7 +112,9 @@ function AppLayout() {
         <AppSidebar />
         <SidebarInset className="flex flex-col flex-1 min-w-0">
           <header className="flex items-center justify-between gap-4 px-4 py-3 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-50">
-            <SidebarTrigger data-testid="button-sidebar-toggle" />
+            <div className="flex items-center gap-3">
+              <SidebarTrigger data-testid="button-sidebar-toggle" />
+            </div>
             <div className="flex items-center gap-2">
               <LanguageToggle />
               <ThemeToggle />
@@ -133,12 +133,15 @@ function AppLayout() {
 
 function AuthenticatedApp() {
   const { user, isLoading } = useAuth();
+  const { isRTL } = useI18n();
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
+      <div className="min-h-screen bg-background flex items-center justify-center" dir={isRTL ? "rtl" : "ltr"}>
         <div className="animate-pulse flex flex-col items-center gap-4">
-          <div className="w-12 h-12 rounded-xl bg-primary/20" />
+          <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-[hsl(220,60%,30%)] to-[hsl(220,50%,20%)] flex items-center justify-center shadow-lg">
+            <Scale className="w-7 h-7 text-white/50" />
+          </div>
           <div className="h-4 w-32 bg-muted rounded" />
         </div>
       </div>
@@ -146,7 +149,7 @@ function AuthenticatedApp() {
   }
 
   if (!user) {
-    return <Landing />;
+    return <AuthPage />;
   }
 
   return <AppLayout />;

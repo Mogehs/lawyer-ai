@@ -3,10 +3,13 @@ import {
   translationVersions, 
   memorandums, 
   memorandumVersions,
+  users,
   type Translation, 
   type InsertTranslation, 
   type Memorandum, 
-  type InsertMemorandum 
+  type InsertMemorandum,
+  type User,
+  type UpsertUser
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc } from "drizzle-orm";
@@ -23,6 +26,11 @@ export interface IStorage {
   createMemorandum(data: InsertMemorandum): Promise<Memorandum>;
   deleteMemorandum(id: string): Promise<void>;
   addMemorandumVersion(id: string, content: string): Promise<Memorandum | undefined>;
+
+  getUserByEmail(email: string): Promise<User | undefined>;
+  getUserById(id: string): Promise<User | undefined>;
+  createUser(data: UpsertUser): Promise<User>;
+  updateUser(id: string, data: Partial<UpsertUser>): Promise<User | undefined>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -162,6 +170,45 @@ export class DatabaseStorage implements IStorage {
       .where(eq(memorandums.id, id));
 
     return this.getMemorandum(id);
+  }
+
+  async getUserByEmail(email: string): Promise<User | undefined> {
+    const [result] = await db
+      .select()
+      .from(users)
+      .where(eq(users.email, email.toLowerCase()));
+    return result;
+  }
+
+  async getUserById(id: string): Promise<User | undefined> {
+    const [result] = await db
+      .select()
+      .from(users)
+      .where(eq(users.id, id));
+    return result;
+  }
+
+  async createUser(data: UpsertUser): Promise<User> {
+    const [result] = await db
+      .insert(users)
+      .values({
+        ...data,
+        email: data.email?.toLowerCase(),
+      })
+      .returning();
+    return result;
+  }
+
+  async updateUser(id: string, data: Partial<UpsertUser>): Promise<User | undefined> {
+    const [result] = await db
+      .update(users)
+      .set({
+        ...data,
+        updatedAt: new Date(),
+      })
+      .where(eq(users.id, id))
+      .returning();
+    return result;
   }
 }
 

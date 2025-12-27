@@ -1,10 +1,10 @@
-import type { Express } from "express";
+import type { Express, Request } from "express";
 import { type Server } from "http";
 import { storage } from "./storage";
 import OpenAI from "openai";
 import { z } from "zod";
 import { documentTypes, documentPurposes, writingTones, jurisdictions, memorandumTypes, memoStrengths } from "@shared/schema";
-import { setupAuth, registerAuthRoutes, isAuthenticated } from "./replit_integrations/auth";
+import { setupAuth, registerAuthRoutes, isAuthenticated } from "./auth";
 
 const openai = new OpenAI({
   apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
@@ -36,8 +36,8 @@ function isOpenAIConfigured(): boolean {
   return !!(process.env.AI_INTEGRATIONS_OPENAI_API_KEY && process.env.AI_INTEGRATIONS_OPENAI_BASE_URL);
 }
 
-function getUserId(req: any): string {
-  return req.user?.claims?.sub || "";
+function getUserId(req: Request): string {
+  return req.session.userId || "";
 }
 
 export async function registerRoutes(
@@ -47,7 +47,7 @@ export async function registerRoutes(
   await setupAuth(app);
   registerAuthRoutes(app);
 
-  app.get("/api/translations", isAuthenticated, async (req: any, res) => {
+  app.get("/api/translations", isAuthenticated, async (req: Request, res) => {
     try {
       const userId = getUserId(req);
       const translations = await storage.getTranslations(userId);
@@ -71,7 +71,7 @@ export async function registerRoutes(
     }
   });
 
-  app.post("/api/translate", isAuthenticated, async (req: any, res) => {
+  app.post("/api/translate", isAuthenticated, async (req: Request, res) => {
     try {
       const parseResult = translateRequestSchema.safeParse(req.body);
       if (!parseResult.success) {
@@ -139,7 +139,7 @@ export async function registerRoutes(
     }
   });
 
-  app.get("/api/memorandums", isAuthenticated, async (req: any, res) => {
+  app.get("/api/memorandums", isAuthenticated, async (req: Request, res) => {
     try {
       const userId = getUserId(req);
       const memorandums = await storage.getMemorandums(userId);
@@ -163,7 +163,7 @@ export async function registerRoutes(
     }
   });
 
-  app.post("/api/memorandums/generate", isAuthenticated, async (req: any, res) => {
+  app.post("/api/memorandums/generate", isAuthenticated, async (req: Request, res) => {
     try {
       const parseResult = generateMemoRequestSchema.safeParse(req.body);
       if (!parseResult.success) {
@@ -233,7 +233,7 @@ export async function registerRoutes(
     }
   });
 
-  app.get("/api/stats", isAuthenticated, async (req: any, res) => {
+  app.get("/api/stats", isAuthenticated, async (req: Request, res) => {
     try {
       const userId = getUserId(req);
       const translations = await storage.getTranslations(userId);
