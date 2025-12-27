@@ -7,7 +7,7 @@ import { documentTypes, documentPurposes, writingTones, jurisdictions, memorandu
 import { setupAuth, registerAuthRoutes, isAuthenticated, isAdmin, attachUser, logAudit, type AuthenticatedRequest } from "./auth";
 
 const openai = new OpenAI({
-  apiKey: "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",
+  apiKey: "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",
   baseURL: "https://openrouter.ai/api/v1",
 }); 
 
