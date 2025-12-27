@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { ArrowLeftRight, Copy, Download, Loader2, Check, RotateCcw, Languages, Sparkles } from "lucide-react";
+import { useState, useRef } from "react";
+import { ArrowLeftRight, Copy, Download, Loader2, Check, RotateCcw, Languages, Sparkles, Upload } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -33,6 +33,8 @@ export default function Translation() {
   const [jurisdiction, setJurisdiction] = useState<string>("qatar");
   const [deterministic, setDeterministic] = useState(true);
   const [copied, setCopied] = useState(false);
+  const [uploadingFile, setUploadingFile] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const targetLanguage = sourceLanguage === "ar" ? "en" : "ar";
 
@@ -99,6 +101,58 @@ export default function Translation() {
       title: t("common.success"),
       description: isRTL ? "تم تصدير الترجمة بنجاح" : "Translation exported successfully",
     });
+  };
+
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    const allowedTypes = ['text/plain', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
+    if (!allowedTypes.includes(file.type)) {
+      toast({
+        title: t("common.error"),
+        description: isRTL ? "يرجى تحميل ملف .txt أو .docx فقط" : "Please upload only .txt or .docx files",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setUploadingFile(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const response = await fetch("/api/extract-text", {
+        method: "POST",
+        body: formData,
+        credentials: "include",
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to extract text");
+      }
+
+      const data = await response.json();
+
+      setSourceText(data.text);
+      toast({
+        title: t("common.success"),
+        description: isRTL ? "تم استخراج النص بنجاح" : "Text extracted successfully",
+      });
+    } catch (error) {
+      toast({
+        title: t("common.error"),
+        description: isRTL ? "فشل استخراج النص من الملف" : "Failed to extract text from file",
+        variant: "destructive",
+      });
+    } finally {
+      setUploadingFile(false);
+      // Reset file input
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
   };
 
   return (
@@ -249,7 +303,39 @@ export default function Translation() {
               style={{ fontFamily: sourceLanguage === "ar" ? "var(--font-arabic)" : "var(--font-sans)" }}
               data-testid="textarea-source"
             />
-            <div className="mt-4 flex justify-end pt-4 border-t">
+            <div className="mt-4 flex justify-between gap-2 pt-4 border-t">
+              <div>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".txt,.docx"
+                  onChange={handleFileUpload}
+                  className="hidden"
+                  data-testid="file-input"
+                />
+                <Button
+                  variant="outline"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={uploadingFile}
+                  data-testid="button-upload-file"
+                >
+                  {uploadingFile ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      <span className={isRTL ? "mr-2" : "ml-2"}>
+                        {isRTL ? "جاري التحميل..." : "Uploading..."}
+                      </span>
+                    </>
+                  ) : (
+                    <>
+                      <Upload className="h-4 w-4" />
+                      <span className={isRTL ? "mr-2" : "ml-2"}>
+                        {isRTL ? "تحميل ملف" : "Upload File"}
+                      </span>
+                    </>
+                  )}
+                </Button>
+              </div>
               <Button
                 onClick={() => translateMutation.mutate()}
                 disabled={!sourceText.trim() || translateMutation.isPending}

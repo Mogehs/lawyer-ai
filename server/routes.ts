@@ -1,15 +1,50 @@
 import type { Express, Request } from "express";
 import { type Server } from "http";
 import { storage } from "./storage";
-import OpenAI from "openai";
 import { z } from "zod";
 import { documentTypes, documentPurposes, writingTones, jurisdictions, memorandumTypes, memoStrengths, insertSiteSettingsSchema } from "@shared/schema";
 import { setupAuth, registerAuthRoutes, isAuthenticated, isAdmin, attachUser, logAudit, type AuthenticatedRequest } from "./auth";
+import multer from "multer";
+import mammoth from "mammoth";
+import { promises as fs } from "fs";
 
-const openai = new OpenAI({
-  apiKey: "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",
-  baseURL: "https://openrouter.ai/api/v1",
-}); 
+// Google AI Configuration
+const GOOGLE_API_KEY = "AIzaSyBIiAR2-w7II5N7YS79Wbxe3ZS35Z6M3iY";
+
+async function callGoogleAI(
+  systemPrompt: string,
+  userPrompt: string,
+  temperature: number = 0.3,
+  maxTokens: number = 2048
+): Promise<string> {
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GOOGLE_API_KEY}`;
+
+  const response = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      contents: [
+        {
+          role: "user",
+          parts: [{ text: `${systemPrompt}\n\n${userPrompt}` }],
+        },
+      ],
+      generationConfig: {
+        temperature,
+        maxOutputTokens: maxTokens,
+      },
+    }),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Google AI API error: ${response.status} - ${errorText}`);
+  }
+
+  const data = await response.json();
+  return data?.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
+}
+
 
 const translateRequestSchema = z.object({
   sourceText: z.string().min(1, "Source text is required"),
@@ -43,6 +78,52 @@ export async function registerRoutes(
 ): Promise<Server> {
   await setupAuth(app);
   registerAuthRoutes(app);
+
+  // Configure multer for file uploads
+  const upload = multer({
+    storage: multer.memoryStorage(),
+    limits: {
+      fileSize: 10 * 1024 * 1024, // 10MB limit
+    },
+    fileFilter: (_req, file, cb) => {
+      const allowedTypes = [
+        'text/plain',
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        'application/msword'
+      ];
+      if (allowedTypes.includes(file.mimetype)) {
+        cb(null, true);
+      } else {
+        cb(new Error('Invalid file type. Only .txt and .docx files are allowed.'));
+      }
+    }
+  });
+
+  // File upload route to extract text
+  app.post("/api/extract-text", isAuthenticated, upload.single('file'), async (req, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ error: "No file uploaded" });
+      }
+
+      let extractedText = "";
+
+      // Handle .txt files
+      if (req.file.mimetype === 'text/plain') {
+        extractedText = req.file.buffer.toString('utf-8');
+      }
+      // Handle .docx files
+      else if (req.file.mimetype === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
+        const result = await mammoth.extractRawText({ buffer: req.file.buffer });
+        extractedText = result.value;
+      }
+
+      res.json({ text: extractedText });
+    } catch (error) {
+      console.error("Error extracting text from file:", error);
+      res.status(500).json({ error: "Failed to extract text from file" });
+    }
+  });
 
   app.get("/api/translations", isAuthenticated, async (req: Request, res) => {
     try {
@@ -86,19 +167,14 @@ export async function registerRoutes(
 
       let translatedText: string;
       try {
-        const completion = await openai.chat.completions.create({
-          model: "openai/gpt-4o-mini",
-          messages: [
-            { role: "system", content: systemPrompt },
-            { role: "user", content: sourceText }
-          ],
-          max_tokens: 4096,
-          temperature: deterministic ? 0 : 0.3,
-          top_p: deterministic ? 0.1 : 0.9,
-        });
-        translatedText = completion.choices[0]?.message?.content || "";
+        translatedText = await callGoogleAI(
+          systemPrompt,
+          sourceText,
+          deterministic ? 0.1 : 0.3,
+          4096
+        );
       } catch (aiError: any) {
-        console.error("OpenRouter API error:", aiError);
+        console.error("Google AI API error:", aiError);
         console.error("Error details:", aiError.message, aiError.stack);
         return res.status(503).json({ 
           error: "AI translation service is temporarily unavailable. Please try again later.",
@@ -192,17 +268,14 @@ export async function registerRoutes(
 
       let generatedContent: string;
       try {
-        const completion = await openai.chat.completions.create({
-          model: "openai/gpt-4o-mini",
-          messages: [
-            { role: "system", content: systemPrompt },
-            { role: "user", content: userPrompt }
-          ],
-          max_tokens: 8192,
-        });
-        generatedContent = completion.choices[0]?.message?.content || "";
+        generatedContent = await callGoogleAI(
+          systemPrompt,
+          userPrompt,
+          1.0,
+          8192
+        );
       } catch (aiError: any) {
-        console.error("OpenRouter API error:", aiError);
+        console.error("Google AI API error:", aiError);
         console.error("Error details:", aiError.message, aiError.stack);
         return res.status(503).json({ 
           error: "AI drafting service is temporarily unavailable. Please try again later.",
