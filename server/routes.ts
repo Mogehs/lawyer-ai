@@ -3,8 +3,8 @@ import { type Server } from "http";
 import { storage } from "./storage";
 import OpenAI from "openai";
 import { z } from "zod";
-import { documentTypes, documentPurposes, writingTones, jurisdictions, memorandumTypes, memoStrengths } from "@shared/schema";
-import { setupAuth, registerAuthRoutes, isAuthenticated } from "./auth";
+import { documentTypes, documentPurposes, writingTones, jurisdictions, memorandumTypes, memoStrengths, insertSiteSettingsSchema } from "@shared/schema";
+import { setupAuth, registerAuthRoutes, isAuthenticated, isAdmin, attachUser, type AuthenticatedRequest } from "./auth";
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY || process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
@@ -249,6 +249,72 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Error fetching stats:", error);
       res.status(500).json({ error: "Failed to fetch statistics" });
+    }
+  });
+
+  app.get("/api/settings", async (_req, res) => {
+    try {
+      const settings = await storage.getSiteSettings();
+      res.json(settings || {
+        id: "default",
+        logoUrl: null,
+        appTitle: "AI Legal System",
+        appSubtitle: null,
+        footerText: null,
+        updatedAt: null,
+      });
+    } catch (error) {
+      console.error("Error fetching settings:", error);
+      res.status(500).json({ error: "Failed to fetch settings" });
+    }
+  });
+
+  app.put("/api/settings", isAuthenticated, attachUser, isAdmin, async (req: Request, res) => {
+    try {
+      const parseResult = insertSiteSettingsSchema.safeParse(req.body);
+      if (!parseResult.success) {
+        return res.status(400).json({ 
+          error: "Invalid request data", 
+          details: parseResult.error.errors 
+        });
+      }
+
+      const settings = await storage.updateSiteSettings(parseResult.data);
+      res.json(settings);
+    } catch (error) {
+      console.error("Error updating settings:", error);
+      res.status(500).json({ error: "Failed to update settings" });
+    }
+  });
+
+  app.get("/api/admin/users", isAuthenticated, attachUser, isAdmin, async (_req, res) => {
+    try {
+      const users = await storage.getAllUsers();
+      const usersWithoutPasswords = users.map(({ passwordHash: _, ...user }) => user);
+      res.json(usersWithoutPasswords);
+    } catch (error) {
+      console.error("Error fetching users:", error);
+      res.status(500).json({ error: "Failed to fetch users" });
+    }
+  });
+
+  app.patch("/api/admin/users/:id/role", isAuthenticated, attachUser, isAdmin, async (req: Request, res) => {
+    try {
+      const { role } = req.body;
+      if (!role || !["admin", "user"].includes(role)) {
+        return res.status(400).json({ error: "Invalid role" });
+      }
+
+      const user = await storage.updateUser(req.params.id, { role } as any);
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+
+      const { passwordHash: _, ...userWithoutPassword } = user;
+      res.json(userWithoutPassword);
+    } catch (error) {
+      console.error("Error updating user role:", error);
+      res.status(500).json({ error: "Failed to update user role" });
     }
   });
 

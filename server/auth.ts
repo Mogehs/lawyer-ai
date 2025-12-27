@@ -161,6 +161,19 @@ export function isAuthenticated(
   next();
 }
 
+export function isAdmin(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): void {
+  const authReq = req as AuthenticatedRequest;
+  if (!authReq.user || authReq.user.role !== "admin") {
+    res.status(403).json({ message: "Admin access required" });
+    return;
+  }
+  next();
+}
+
 export async function attachUser(
   req: Request,
   res: Response,

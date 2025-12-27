@@ -4,12 +4,15 @@ import {
   memorandums, 
   memorandumVersions,
   users,
+  siteSettings,
   type Translation, 
   type InsertTranslation, 
   type Memorandum, 
   type InsertMemorandum,
   type User,
-  type UpsertUser
+  type UpsertUser,
+  type SiteSettings,
+  type InsertSiteSettings
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc } from "drizzle-orm";
@@ -31,6 +34,10 @@ export interface IStorage {
   getUserById(id: string): Promise<User | undefined>;
   createUser(data: UpsertUser): Promise<User>;
   updateUser(id: string, data: Partial<UpsertUser>): Promise<User | undefined>;
+  getAllUsers(): Promise<User[]>;
+
+  getSiteSettings(): Promise<SiteSettings | undefined>;
+  updateSiteSettings(data: InsertSiteSettings): Promise<SiteSettings>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -209,6 +216,47 @@ export class DatabaseStorage implements IStorage {
       .where(eq(users.id, id))
       .returning();
     return result;
+  }
+
+  async getAllUsers(): Promise<User[]> {
+    const results = await db
+      .select()
+      .from(users)
+      .orderBy(desc(users.createdAt));
+    return results;
+  }
+
+  async getSiteSettings(): Promise<SiteSettings | undefined> {
+    const [result] = await db
+      .select()
+      .from(siteSettings)
+      .where(eq(siteSettings.id, "default"));
+    return result;
+  }
+
+  async updateSiteSettings(data: InsertSiteSettings): Promise<SiteSettings> {
+    const existing = await this.getSiteSettings();
+    
+    if (existing) {
+      const [result] = await db
+        .update(siteSettings)
+        .set({
+          ...data,
+          updatedAt: new Date(),
+        })
+        .where(eq(siteSettings.id, "default"))
+        .returning();
+      return result;
+    } else {
+      const [result] = await db
+        .insert(siteSettings)
+        .values({
+          id: "default",
+          ...data,
+        })
+        .returning();
+      return result;
+    }
   }
 }
 
