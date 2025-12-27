@@ -7,8 +7,8 @@ import { documentTypes, documentPurposes, writingTones, jurisdictions, memorandu
 import { setupAuth, registerAuthRoutes, isAuthenticated } from "./auth";
 
 const openai = new OpenAI({
-  apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
-  baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
+  apiKey: process.env.OPENAI_API_KEY || process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
+  baseURL: process.env.OPENAI_BASE_URL || process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
 });
 
 const translateRequestSchema = z.object({
@@ -33,7 +33,8 @@ const generateMemoRequestSchema = z.object({
 });
 
 function isOpenAIConfigured(): boolean {
-  return !!(process.env.AI_INTEGRATIONS_OPENAI_API_KEY && process.env.AI_INTEGRATIONS_OPENAI_BASE_URL);
+  const apiKey = process.env.OPENAI_API_KEY || process.env.AI_INTEGRATIONS_OPENAI_API_KEY;
+  return !!apiKey;
 }
 
 function getUserId(req: Request): string {

@@ -21,6 +21,11 @@ const SALT_ROUNDS = 12;
 export async function setupAuth(app: Express) {
   const PgSession = connectPgSimple(session);
 
+  const isProduction = process.env.NODE_ENV === "production";
+  const isCrossOrigin = !!process.env.CORS_ORIGIN;
+
+  app.set("trust proxy", 1);
+
   app.use(
     session({
       store: new PgSession({
@@ -32,10 +37,10 @@ export async function setupAuth(app: Express) {
       resave: false,
       saveUninitialized: false,
       cookie: {
-        secure: process.env.NODE_ENV === "production",
+        secure: isProduction,
         httpOnly: true,
         maxAge: 7 * 24 * 60 * 60 * 1000,
-        sameSite: "lax",
+        sameSite: isCrossOrigin ? "none" : "lax",
       },
     })
   );

@@ -3,8 +3,27 @@ import { registerRoutes } from "./routes";
 import { serveStatic } from "./static";
 import { createServer } from "http";
 
+import cors from "cors";
+
 const app = express();
 const httpServer = createServer(app);
+
+const allowedOrigins = process.env.CORS_ORIGIN 
+  ? process.env.CORS_ORIGIN.split(",").map(o => o.trim())
+  : [];
+
+if (allowedOrigins.length > 0) {
+  app.use(cors({
+    origin: (origin, callback) => {
+      if (!origin || allowedOrigins.includes(origin) || allowedOrigins.includes("*")) {
+        callback(null, true);
+      } else {
+        callback(new Error("Not allowed by CORS"));
+      }
+    },
+    credentials: true,
+  }));
+}
 
 declare module "http" {
   interface IncomingMessage {
