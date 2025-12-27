@@ -1,15 +1,12 @@
 import type { Express, Request } from "express";
 import { type Server } from "http";
 import { storage } from "./storage";
-import OpenAI from "openai";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 import { z } from "zod";
 import { documentTypes, documentPurposes, writingTones, jurisdictions, memorandumTypes, memoStrengths, insertSiteSettingsSchema } from "@shared/schema";
 import { setupAuth, registerAuthRoutes, isAuthenticated, isAdmin, attachUser, logAudit, type AuthenticatedRequest } from "./auth";
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY || process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
-  baseURL: process.env.OPENAI_BASE_URL || process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
-});
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "AIzaSyDOnEdn5Y4PIALaHGeGjAKMnkNzsc7gQJs");
 
 const translateRequestSchema = z.object({
   sourceText: z.string().min(1, "Source text is required"),
@@ -33,7 +30,7 @@ const generateMemoRequestSchema = z.object({
 });
 
 function isOpenAIConfigured(): boolean {
-  const apiKey = process.env.OPENAI_API_KEY || process.env.AI_INTEGRATIONS_OPENAI_API_KEY;
+  const apiKey = process.env.GEMINI_API_KEY;
   return !!apiKey;
 }
 
@@ -96,19 +93,20 @@ export async function registerRoutes(
 
       let translatedText: string;
       try {
-        const completion = await openai.chat.completions.create({
-          model: process.env.AI_MODEL || "google/gemini-2.0-flash-exp",
-          messages: [
-            { role: "system", content: systemPrompt },
-            { role: "user", content: sourceText }
-          ],
-          max_completion_tokens: 4096,
-          temperature: deterministic ? 0 : 0.3,
-          top_p: deterministic ? 0.1 : 0.9,
+        const model = genAI.getGenerativeModel({ 
+          model: process.env.GEMINI_MODEL || "gemini-2.0-flash-exp",
+          generationConfig: {
+            temperature: deterministic ? 0 : 0.3,
+            topP: deterministic ? 0.1 : 0.9,
+            maxOutputTokens: 4096,
+          },
         });
-        translatedText = completion.choices[0]?.message?.content || "";
+        
+        const prompt = `${systemPrompt}\n\n${sourceText}`;
+        const result = await model.generateContent(prompt);
+        translatedText = result.response.text() || "";
       } catch (aiError) {
-        console.error("OpenAI API error:", aiError);
+        console.error("Gemini API error:", aiError);
         return res.status(503).json({ 
           error: "AI translation service is temporarily unavailable. Please try again later." 
         });
@@ -206,17 +204,18 @@ export async function registerRoutes(
 
       let generatedContent: string;
       try {
-        const completion = await openai.chat.completions.create({
-          model: process.env.AI_MODEL || "google/gemini-2.0-flash-exp",
-          messages: [
-            { role: "system", content: systemPrompt },
-            { role: "user", content: userPrompt }
-          ],
-          max_completion_tokens: 8192,
+        const model = genAI.getGenerativeModel({ 
+          model: process.env.GEMINI_MODEL || "gemini-2.0-flash-exp",
+          generationConfig: {
+            maxOutputTokens: 8192,
+          },
         });
-        generatedContent = completion.choices[0]?.message?.content || "";
+        
+        const prompt = `${systemPrompt}\n\n${userPrompt}`;
+        const result = await model.generateContent(prompt);
+        generatedContent = result.response.text() || "";
       } catch (aiError) {
-        console.error("OpenAI API error:", aiError);
+        console.error("Gemini API error:", aiError);
         return res.status(503).json({ 
           error: "AI drafting service is temporarily unavailable. Please try again later." 
         });
