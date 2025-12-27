@@ -94,7 +94,7 @@ export async function registerRoutes(
       let translatedText: string;
       try {
         const model = genAI.getGenerativeModel({ 
-          model: process.env.GEMINI_MODEL || "gemini-2.0-flash-exp",
+          model: process.env.GEMINI_MODEL || "gemini-1.5-flash",
           generationConfig: {
             temperature: deterministic ? 0 : 0.3,
             topP: deterministic ? 0.1 : 0.9,
@@ -209,7 +209,7 @@ ${sourceText}`;
       let generatedContent: string;
       try {
         const model = genAI.getGenerativeModel({ 
-          model: process.env.GEMINI_MODEL || "gemini-2.0-flash-exp",
+          model: "gemini-1.5-flash",
           generationConfig: {
             maxOutputTokens: 8192,
           },
