@@ -1,0 +1,144 @@
+AI Expert Requirements
+
+AI Legal Translation & Legal Memorandum Writing System
+
+(Private / White-Label – Single Law Firm Deployment)
+
+⸻
+
+1.⁠ ⁠Project Scope
+
+Develop a private AI system dedicated exclusively to:
+	1.	Legal translation (Arabic ↔️ English)
+	2.	Legal memorandum drafting
+
+The system functions as an assistive drafting tool.
+All outputs are non-binding drafts and must be reviewed and approved by licensed lawyers.
+
+⸻
+
+2.⁠ ⁠Core Functional Modules
+
+⸻
+
+🔹 Module 1: AI Legal Translation
+
+Language Support
+	•	Arabic ⇄ English
+
+Supported Legal Documents
+	•	Legal memorandums
+	•	Contracts
+	•	Statements of claim
+	•	Court judgments
+	•	Legal correspondence
+
+Functional Requirements
+	•	Context-aware legal translation (non-literal)
+	•	Preserve:
+	•	Legal terminology accuracy
+	•	Court-appropriate formal tone
+	•	Jurisdiction-style wording (Qatar / GCC / neutral)
+	•	Ability to select:
+	•	Document purpose (Court / Internal / Client)
+	•	Writing tone (Formal / Professional / Concise)
+
+Output
+	•	Editable text
+	•	Export: DOCX, PDF
+	•	Translation history & version tracking
+
+⸻
+
+🔹 Module 2: AI Legal Memorandum Drafting
+
+Supported Memorandum Types
+	•	Defense Memorandum
+	•	Response Memorandum
+	•	Reply Memorandum
+	•	Statement of Claim
+	•	Appeal Memorandum
+	•	Legal Motions
+
+Input Parameters
+	•	Case type
+	•	Court name
+	•	Case facts
+	•	Legal requests
+	•	Defense or response points
+
+AI Capabilities
+	•	Logical legal analysis of provided facts
+	•	Structuring documents based on court standards
+	•	Professional legal language generation
+	•	Rewriting & strengthening legal arguments upon request
+	•	Adjustable writing tone:
+	•	Strong
+	•	Neutral
+	•	Defensive
+
+Controls
+	•	Full manual editing
+	•	Multiple draft versions
+	•	Custom lawyer-specific templates
+
+⸻
+
+3.⁠ ⁠AI & Model Requirements
+	•	High-accuracy bilingual legal language understanding
+	•	Prompt-controlled drafting (structure, tone, jurisdiction)
+	•	No hallucinated legal citations
+	•	Deterministic output option for consistency
+	•	Context memory per document (no cross-case data mixing)
+
+⸻
+
+4.⁠ ⁠Security & Data Handling
+	•	Private deployment (single law firm)
+	•	Encrypted data storage
+	•	Role-based access
+	•	No training on client data
+	•	Full audit trail of user actions
+
+⸻
+
+5.⁠ ⁠System Interface Requirements
+	•	Clean, professional legal UI
+	•	Arabic & English interface
+	•	RTL & LTR support
+	•	Simple workflow suitable for lawyers & legal assistants
+
+⸻
+
+6.⁠ ⁠Deployment Requirements
+	•	Standalone system
+	•	White-label branding (law firm name, logo)
+	•	Modular architecture for future upgrades
+	•	API-ready (internal use only)
+
+⸻
+
+7.⁠ ⁠Legal & Compliance Constraints
+	•	System must clearly display:
+	•	“AI-Generated Draft – Lawyer Review Required”
+	•	No automated legal advice
+	•	Final legal responsibility remains with the lawyer
+
+⸻
+
+8.⁠ ⁠Deliverables Expected from AI Expert
+	•	Working AI translation engine
+	•	Legal memorandum drafting engine
+	•	Prompt architecture documentation
+	•	Model limitations documentation
+	•	Security & privacy implementation
+
+⸻
+
+9.⁠ ⁠Positioning
+
+This system is a premium legal productivity tool designed to:
+	•	Reduce drafting time
+	•	Improve legal language quality
+	•	Increase law firm efficiency
+	•	Maintain full legal compliance
